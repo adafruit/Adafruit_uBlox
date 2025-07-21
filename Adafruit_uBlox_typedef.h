@@ -17,7 +17,7 @@
 
 #include <Arduino.h>
 
-// UBX Message Classes
+/** UBX protocol message class identifiers. */
 typedef enum {
   UBX_CLASS_NAV = 0x01, // Navigation Results
   UBX_CLASS_RXM = 0x02, // Receiver Manager Messages
@@ -36,7 +36,7 @@ typedef enum {
   UBX_CLASS_NMEA = 0xF0 // NMEA Standard Messages
 } UBXMessageClass;
 
-// UBX CFG Message IDs
+/** UBX CFG Message IDs. */
 typedef enum {
   UBX_CFG_PRT = 0x00,   // Port Configuration
   UBX_CFG_MSG = 0x01,   // Message Configuration
@@ -48,7 +48,7 @@ typedef enum {
   UBX_CFG_PMS = 0x86    // Power Mode Setup
 } UBXCfgMessageId;
 
-// Return values for functions that wait for acknowledgment
+/** Return values for functions that wait for acknowledgment. */
 typedef enum {
   UBX_SEND_SUCCESS = 0, // Message was acknowledged (ACK)
   UBX_SEND_NAK,         // Message was not acknowledged (NAK)
@@ -56,7 +56,7 @@ typedef enum {
   UBX_SEND_TIMEOUT      // Timed out waiting for ACK/NAK
 } UBXSendStatus;
 
-// Port ID enum for different interfaces
+/** Port ID enum for different interfaces. */
 typedef enum {
   UBX_PORT_DDC = 0,   // I2C / DDC port
   UBX_PORT_UART1 = 1, // UART1 port
@@ -65,7 +65,7 @@ typedef enum {
   UBX_PORT_SPI = 4    // SPI port
 } UBXPortId;
 
-// UART mode flags (Charlen, Parity & Stop bit settings)
+/** UART mode flags (Charlen, Parity & Stop bit settings). */
 typedef enum {
   UBX_UART_MODE_8N1 = 0x000, // 8-bit, no parity, 1 stop bit
   UBX_UART_MODE_8E1 = 0x100, // 8-bit, even parity, 1 stop bit
@@ -82,27 +82,27 @@ typedef enum {
 } UBXUARTMode;
 
 // Protocol flags for inProtoMask and outProtoMask
-#define UBX_PROTOCOL_UBX 0x0001   // UBX protocol
-#define UBX_PROTOCOL_NMEA 0x0002  // NMEA protocol
-#define UBX_PROTOCOL_RTCM 0x0004  // RTCM2 protocol (only for inProtoMask)
-#define UBX_PROTOCOL_RTCM3 0x0020 // RTCM3 protocol
+#define UBX_PROTOCOL_UBX 0x0001   ///< UBX protocol
+#define UBX_PROTOCOL_NMEA 0x0002  ///< NMEA protocol
+#define UBX_PROTOCOL_RTCM 0x0004  ///< RTCM2 protocol (only for inProtoMask)
+#define UBX_PROTOCOL_RTCM3 0x0020 ///< RTCM3 protocol
 
-// CFG-PRT (Port Configuration) Message
-// Total size: 20 bytes
+/** UBX CFG-PRT (Port Configuration) message structure. 20 bytes total.
+ */
 typedef union {
   struct {
     uint8_t
-        portID; // Port identifier (0=DDC/I2C, 1=UART1, 2=UART2, 3=USB, 4=SPI)
-    uint8_t reserved1; // Reserved
-    uint16_t txReady;  // TX ready PIN configuration
-    uint32_t mode;     // UART mode (bit field) or Reserved for non-UART ports
-    uint32_t baudRate; // Baudrate in bits/second (UART only)
-    uint16_t inProtoMask;  // Input protocol mask
-    uint16_t outProtoMask; // Output protocol mask
-    uint16_t flags;        // Flags bit field
-    uint16_t reserved2;    // Reserved
-  } fields;
-  uint8_t raw[20];
+        portID; ///< Port identifier (0=DDC/I2C, 1=UART1, 2=UART2, 3=USB, 4=SPI)
+    uint8_t reserved1; ///< Reserved
+    uint16_t txReady;  ///< TX ready PIN configuration
+    uint32_t mode;     ///< UART mode (bit field) or Reserved for non-UART ports
+    uint32_t baudRate; ///< Baudrate in bits/second (UART only)
+    uint16_t inProtoMask;  ///< Input protocol mask
+    uint16_t outProtoMask; ///< Output protocol mask
+    uint16_t flags;        ///< Flags bit field
+    uint16_t reserved2;    ///< Reserved
+  } fields;                ///< Fields for CFG-PRT message
+  uint8_t raw[20];         ///< Raw byte array for CFG-PRT message
 } UBX_CFG_PRT_t;
 
 #endif // ADAFRUIT_UBLOX_TYPEDEF_H

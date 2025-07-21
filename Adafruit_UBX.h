@@ -22,14 +22,20 @@
 #include <Stream.h>
 
 // UBX protocol constants
-#define UBX_SYNC_CHAR_1 0xB5 // First UBX protocol sync char (�)
-#define UBX_SYNC_CHAR_2 0x62 // Second UBX protocol sync char (b)
+#define UBX_SYNC_CHAR_1 0xB5 ///< First UBX protocol sync char (�)
+#define UBX_SYNC_CHAR_2 0x62 ///< Second UBX protocol sync char (b)
 // UBX ACK Message IDs
-#define UBX_ACK_NAK 0x00 // Message Not Acknowledged
-#define UBX_ACK_ACK 0x01 // Message Acknowledged
+#define UBX_ACK_NAK 0x00 ///< Message Not Acknowledged
+#define UBX_ACK_ACK 0x01 ///< Message Acknowledged
 
-// Callback function type for UBX messages - defined at global scope so other
-// classes can use it
+/*!
+ *  @brief  Callback function type for UBX messages - defined at global scope so
+ * other classes can use it
+ *  @param  msgClass Message class
+ *  @param  msgId Message ID
+ *  @param  payloadLen Length of payload data
+ *  @param  payload Pointer to payload data
+ */
 typedef void (*UBXMessageCallback)(uint8_t msgClass, uint8_t msgId,
                                    uint16_t payloadLen, uint8_t *payload);
 
@@ -38,13 +44,11 @@ typedef void (*UBXMessageCallback)(uint8_t msgClass, uint8_t msgId,
  */
 class Adafruit_UBX {
 public:
-  // Constructor
   Adafruit_UBX(Stream &stream);
-  uint8_t verbose_debug = 0; // 0=off, 1=basic, 2=verbose
-
+  ~Adafruit_UBX();
+  uint8_t verbose_debug = 0; ///<  0=off, 1=basic, 2=verbose
   // Basic methods
   bool begin();
-
   bool checkMessages(); // Message parsing
   bool sendMessage(uint8_t msgClass, uint8_t msgId, uint8_t *payload,
                    uint16_t length); // Send a UBX message
@@ -57,7 +61,7 @@ public:
                            uint16_t timeout_ms = 500);
 
   void setMessageCallback(UBXMessageCallback callback); // Set callback function
-  UBXMessageCallback onUBXMessage; // Callback for message received
+  UBXMessageCallback onUBXMessage; ///< Callback for message received
 
 private:
   Stream *_stream; // Stream interface for reading data

@@ -1,25 +1,23 @@
 /*!
  * @file Adafruit_UBloxDDC.cpp
  *
- * @mainpage Arduino library for u-blox GPS/RTK modules over DDC (I2C)
- *
- * @section intro_sec Introduction
+ * @section ddc_intro_sec Introduction
  *
  * This is a library for the u-blox GPS/RTK modules using I2C interface (DDC)
  *
  * Designed specifically to work with u-blox GPS/RTK modules
  * like NEO-M8P, ZED-F9P, etc.
  *
- * @section dependencies Dependencies
+ * @section ddc_dependencies Dependencies
  *
  * This library depends on:
  * <a href="https://github.com/adafruit/Adafruit_BusIO">Adafruit_BusIO</a>
  *
- * @section author Author
+ * @section ddc_author Author
  *
  * Written by Limor Fried/Ladyada for Adafruit Industries.
  *
- * @section license License
+ * @section ddc_license License
  *
  * MIT license, all text above must be included in any redistribution
  */
