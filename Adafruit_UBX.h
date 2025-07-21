@@ -9,7 +9,7 @@
  * please support Adafruit and open-source hardware by purchasing
  * products from Adafruit!
  *
- * Written by Your Name for Project Name.
+ * Written by Limor Fried/Ladyada for Adafruit Industries.
  * 
  * MIT license, all text here must be included in any redistribution.
  */
@@ -22,7 +22,7 @@
 #include "Adafruit_uBlox_typedef.h"
 
 // UBX protocol constants
-#define UBX_SYNC_CHAR_1 0xB5 // First UBX protocol sync char (µ)
+#define UBX_SYNC_CHAR_1 0xB5 // First UBX protocol sync char (ï¿½)
 #define UBX_SYNC_CHAR_2 0x62 // Second UBX protocol sync char (b)
 // UBX ACK Message IDs
 #define UBX_ACK_NAK 0x00     // Message Not Acknowledged

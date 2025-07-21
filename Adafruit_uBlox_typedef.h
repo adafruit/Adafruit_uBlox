@@ -7,7 +7,7 @@
  * please support Adafruit and open-source hardware by purchasing
  * products from Adafruit!
  *
- * Written by Your Name for Project Name.
+ * Written by Limor Fried/Ladyada for Adafruit Industries.
  * 
  * MIT license, all text here must be included in any redistribution.
  */

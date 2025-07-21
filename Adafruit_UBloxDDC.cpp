@@ -17,7 +17,7 @@
  * 
  * @section author Author
  * 
- * Written by Your Name for Project Name.
+ * Written by Limor Fried/Ladyada for Adafruit Industries.
  * 
  * @section license License
  * 
