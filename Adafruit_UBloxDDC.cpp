@@ -1,26 +1,26 @@
 /*!
  * @file Adafruit_UBloxDDC.cpp
- * 
+ *
  * @mainpage Arduino library for u-blox GPS/RTK modules over DDC (I2C)
- * 
+ *
  * @section intro_sec Introduction
- * 
+ *
  * This is a library for the u-blox GPS/RTK modules using I2C interface (DDC)
- * 
- * Designed specifically to work with u-blox GPS/RTK modules 
+ *
+ * Designed specifically to work with u-blox GPS/RTK modules
  * like NEO-M8P, ZED-F9P, etc.
- * 
+ *
  * @section dependencies Dependencies
- * 
+ *
  * This library depends on:
  * <a href="https://github.com/adafruit/Adafruit_BusIO">Adafruit_BusIO</a>
- * 
+ *
  * @section author Author
- * 
+ *
  * Written by Limor Fried/Ladyada for Adafruit Industries.
- * 
+ *
  * @section license License
- * 
+ *
  * MIT license, all text above must be included in any redistribution
  */
 
@@ -50,9 +50,7 @@ Adafruit_UBloxDDC::~Adafruit_UBloxDDC() {
  *  @brief  Initializes the GPS module and I2C interface
  *  @return True if GPS module responds, false on any failure
  */
-bool Adafruit_UBloxDDC::begin() {
-  return _i2cDevice->begin();
-}
+bool Adafruit_UBloxDDC::begin() { return _i2cDevice->begin(); }
 
 /*!
  *  @brief  Gets the number of bytes available for reading
@@ -60,17 +58,18 @@ bool Adafruit_UBloxDDC::begin() {
  */
 int Adafruit_UBloxDDC::available() {
   uint8_t buffer[2];
-  
+
   // Create a register for reading bytes available
-  Adafruit_BusIO_Register bytesAvailableReg = Adafruit_BusIO_Register(_i2cDevice, REG_BYTES_AVAILABLE_MSB, 2);
-  
+  Adafruit_BusIO_Register bytesAvailableReg =
+      Adafruit_BusIO_Register(_i2cDevice, REG_BYTES_AVAILABLE_MSB, 2);
+
   if (!bytesAvailableReg.read(buffer, 2)) {
     return 0;
   }
-  
+
   uint16_t bytesAvailable = (uint16_t)buffer[0] << 8;
   bytesAvailable |= buffer[1];
-  
+
   return bytesAvailable;
 }
 
@@ -84,16 +83,17 @@ int Adafruit_UBloxDDC::read() {
     _hasPeeked = false;
     return _lastByte;
   }
-  
+
   uint8_t value;
-  
+
   // Create a register for the data stream
-  Adafruit_BusIO_Register dataStreamReg = Adafruit_BusIO_Register(_i2cDevice, REG_DATA_STREAM, 1);
-  
+  Adafruit_BusIO_Register dataStreamReg =
+      Adafruit_BusIO_Register(_i2cDevice, REG_DATA_STREAM, 1);
+
   if (!dataStreamReg.read(&value, 1)) {
     return -1;
   }
-  
+
   return value;
 }
 
@@ -106,13 +106,13 @@ int Adafruit_UBloxDDC::peek() {
   if (_hasPeeked) {
     return _lastByte;
   }
-  
+
   // Otherwise, read a byte and store it
   _lastByte = read();
   if (_lastByte != -1) {
     _hasPeeked = true;
   }
-  
+
   return _lastByte;
 }
 
@@ -139,7 +139,7 @@ size_t Adafruit_UBloxDDC::write(const uint8_t *buffer, size_t size) {
     // Single-byte writes aren't supported
     return 0;
   }
-  
+
   // Use Adafruit_BusIO to handle the I2C transaction
   if (_i2cDevice->write(buffer, size)) {
     return size;
@@ -153,42 +153,43 @@ size_t Adafruit_UBloxDDC::write(const uint8_t *buffer, size_t size) {
  *  @param  length  Maximum number of bytes to read
  *  @return Number of bytes actually read, which may be less than requested
  */
-uint16_t Adafruit_UBloxDDC::readBytes(uint8_t* buffer, uint16_t length) {
+uint16_t Adafruit_UBloxDDC::readBytes(uint8_t *buffer, uint16_t length) {
   if (buffer == nullptr || length == 0) {
     return 0;
   }
-  
+
   uint16_t bytesRead = 0;
   uint16_t bytesAvailable = available();
-  
+
   // Don't try to read more bytes than are available
   length = min(length, bytesAvailable);
-  
+
   // Handle any peeked byte first
   if (_hasPeeked && length > 0) {
     buffer[0] = _lastByte;
     _hasPeeked = false;
     bytesRead = 1;
   }
-  
+
   if (bytesRead >= length) {
     return bytesRead;
   }
-  
+
   // Create a register for the data stream
-  Adafruit_BusIO_Register dataStreamReg = Adafruit_BusIO_Register(_i2cDevice, REG_DATA_STREAM, 1);
-  
+  Adafruit_BusIO_Register dataStreamReg =
+      Adafruit_BusIO_Register(_i2cDevice, REG_DATA_STREAM, 1);
+
   while (bytesRead < length) {
     // Calculate chunk size (I2C has a limit on bytes per transfer)
     uint16_t chunkSize = min(length - bytesRead, (uint16_t)32);
-    
+
     if (!dataStreamReg.read(&buffer[bytesRead], chunkSize)) {
       break;
     }
-    
+
     bytesRead += chunkSize;
   }
-  
+
   return bytesRead;
 }
 
@@ -198,13 +199,13 @@ uint16_t Adafruit_UBloxDDC::readBytes(uint8_t* buffer, uint16_t length) {
  *  @param  maxLength  Maximum length of buffer
  *  @return Number of bytes read into the buffer
  */
-uint16_t Adafruit_UBloxDDC::readMessage(uint8_t* buffer, uint16_t maxLength) {
+uint16_t Adafruit_UBloxDDC::readMessage(uint8_t *buffer, uint16_t maxLength) {
   uint16_t bytesAvailable = available();
-  
+
   if (bytesAvailable == 0) {
     return 0;
   }
-  
+
   // Limit to buffer size
   uint16_t bytesToRead = min(bytesAvailable, maxLength);
   return readBytes(buffer, bytesToRead);
@@ -215,8 +216,7 @@ uint16_t Adafruit_UBloxDDC::readMessage(uint8_t* buffer, uint16_t maxLength) {
  *  @param  messageLength  Pointer to variable to store message length
  *  @return Pointer to internal buffer containing the message
  */
-uint8_t* Adafruit_UBloxDDC::readMessage(uint16_t* messageLength) {
+uint8_t *Adafruit_UBloxDDC::readMessage(uint16_t *messageLength) {
   *messageLength = readMessage(_buffer, MAX_BUFFER_SIZE);
   return _buffer;
 }
-
