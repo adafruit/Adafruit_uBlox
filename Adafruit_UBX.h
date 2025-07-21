@@ -17,6 +17,7 @@
 #ifndef ADAFRUIT_UBX_H
 #define ADAFRUIT_UBX_H
 
+#include "Adafruit_uBlox_Ubx_Messages.h"
 #include "Adafruit_uBlox_typedef.h"
 #include <Arduino.h>
 #include <Stream.h>

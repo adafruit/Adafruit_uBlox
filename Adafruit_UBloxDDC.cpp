@@ -179,7 +179,7 @@ uint16_t Adafruit_UBloxDDC::readBytes(uint8_t *buffer, uint16_t length) {
 
   while (bytesRead < length) {
     // Calculate chunk size (I2C has a limit on bytes per transfer)
-    uint16_t chunkSize = min(length - bytesRead, (uint16_t)32);
+    uint16_t chunkSize = min((uint16_t)(length - bytesRead), (uint16_t)32);
 
     if (!dataStreamReg.read(&buffer[bytesRead], chunkSize)) {
       break;
