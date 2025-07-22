@@ -25,7 +25,7 @@ jobs:
     - name: Check for correct documentation with doxygen
       env:
         GH_REPO_TOKEN: ${{ secrets.GH_REPO_TOKEN }}
-        PRETTYNAME : "Adafruit Bus Ublox Library"
+        PRETTYNAME : "Adafruit uBlox Library"
       run: bash ci/doxy_gen_and_deploy.sh
 
     - name: Test the code on supported platforms

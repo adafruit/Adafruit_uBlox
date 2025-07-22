@@ -328,7 +328,7 @@ bool Adafruit_UBX::checkMessages() {
 UBXSendStatus Adafruit_UBX::sendMessageWithAck(uint8_t msgClass, uint8_t msgId,
                                                uint8_t *payload,
                                                uint16_t length,
-                                               uint16_t timeout_ms = 500) {
+                                               uint16_t timeout_ms) {
   // First send the message
   if (!sendMessage(msgClass, msgId, payload, length)) {
     if (verbose_debug > 0) {
