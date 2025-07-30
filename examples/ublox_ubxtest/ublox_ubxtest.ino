@@ -1,5 +1,5 @@
 /*!
- * @file ubx_mode_test.ino
+ * @file ublox_ubxtest.ino
  * 
  * Test sketch to verify switching to UBX protocol mode
  * This example uses I2C (DDC) to communicate with a u-blox module.

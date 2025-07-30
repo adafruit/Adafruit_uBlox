@@ -101,7 +101,7 @@ void setup() {
 
 void loop() {
   static char nmeaSentenceBuf[SZ_NMEA_BUFFER];
-  static int nmeaSentenceIdx = 0;
+  static size_t nmeaSentenceIdx = 0;
 
   // Check how many bytes are available
   int bytesAvailable = gps.available();

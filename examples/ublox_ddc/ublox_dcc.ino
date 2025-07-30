@@ -1,5 +1,5 @@
 /*!
- * @file ublox_ddc_example.ino
+ * @file ublox_ddc.ino
  * 
  * Example sketch demonstrating the use of the Adafruit_UBloxDDC library
  * with u-blox GPS/RTK modules over I2C (DDC) interface.
@@ -12,7 +12,7 @@
  * MIT license, all text above must be included in any redistribution
  */
 
-#include "Adafruit_UBloxDDC.h"
+#include <Adafruit_UBloxDDC.h>
 
 // Create Adafruit_UBloxDDC object with default I2C address (0x42)
 Adafruit_UBloxDDC gps;

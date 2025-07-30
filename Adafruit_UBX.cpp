@@ -37,8 +37,6 @@ Adafruit_UBX::Adafruit_UBX(Stream &stream) {
  *  @brief  Destructor
  */
 Adafruit_UBX::~Adafruit_UBX() {
-  if (_stream)
-    delete _stream;
   if (onUBXMessage)
     onUBXMessage = NULL;
 }
