@@ -27,8 +27,8 @@
  * @brief Arduino library for interfacing with u-blox GPS/RTK modules over I2C
  */
 class Adafruit_UBloxDDC : public Stream {
-private:
-  Adafruit_I2CDevice *_i2cDevice; ///< Underlying I2C device
+ private:
+  Adafruit_I2CDevice* _i2cDevice; ///< Underlying I2C device
 
   // Register addresses
   static const uint8_t REG_DATA_STREAM =
@@ -47,9 +47,9 @@ private:
   int _lastByte = -1;      ///< Last byte read by peek()
   bool _hasPeeked = false; ///< Indicates if we have a peeked byte waiting
 
-public:
+ public:
   // Constructor & destructor
-  Adafruit_UBloxDDC(uint8_t address = 0x42, TwoWire *wire = &Wire);
+  Adafruit_UBloxDDC(uint8_t address = 0x42, TwoWire* wire = &Wire);
   ~Adafruit_UBloxDDC();
 
   // Basic methods
@@ -61,12 +61,12 @@ public:
   virtual int peek() override;
   // Stream interface implementation
   virtual size_t write(uint8_t) override;
-  virtual size_t write(const uint8_t *buffer, size_t size) override;
+  virtual size_t write(const uint8_t* buffer, size_t size) override;
 
   // Additional methods
-  uint16_t readBytes(uint8_t *buffer, uint16_t length);
-  uint16_t readMessage(uint8_t *buffer, uint16_t maxLength);
-  uint8_t *readMessage(uint16_t *messageLength);
+  uint16_t readBytes(uint8_t* buffer, uint16_t length);
+  uint16_t readMessage(uint8_t* buffer, uint16_t maxLength);
+  uint8_t* readMessage(uint16_t* messageLength);
 };
 
 #endif // ADAFRUIT_UBLOXDDC_H
