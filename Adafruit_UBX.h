@@ -17,10 +17,11 @@
 #ifndef ADAFRUIT_UBX_H
 #define ADAFRUIT_UBX_H
 
-#include "Adafruit_uBlox_Ubx_Messages.h"
-#include "Adafruit_uBlox_typedef.h"
 #include <Arduino.h>
 #include <Stream.h>
+
+#include "Adafruit_uBlox_Ubx_Messages.h"
+#include "Adafruit_uBlox_typedef.h"
 
 // UBX protocol constants
 #define UBX_SYNC_CHAR_1 0xB5 ///< First UBX protocol sync char (�)
@@ -38,23 +39,23 @@
  *  @param  payload Pointer to payload data
  */
 typedef void (*UBXMessageCallback)(uint8_t msgClass, uint8_t msgId,
-                                   uint16_t payloadLen, uint8_t *payload);
+                                   uint16_t payloadLen, uint8_t* payload);
 
 /*!
  * @brief Class for parsing UBX protocol messages from u-blox GPS/RTK modules
  */
 class Adafruit_UBX {
-public:
-  Adafruit_UBX(Stream &stream);
+ public:
+  Adafruit_UBX(Stream& stream);
   ~Adafruit_UBX();
   uint8_t verbose_debug = 0; ///<  0=off, 1=basic, 2=verbose
   // Basic methods
   bool begin();
   bool checkMessages(); // Message parsing
-  bool sendMessage(uint8_t msgClass, uint8_t msgId, uint8_t *payload,
+  bool sendMessage(uint8_t msgClass, uint8_t msgId, uint8_t* payload,
                    uint16_t length); // Send a UBX message
   UBXSendStatus sendMessageWithAck(uint8_t msgClass, uint8_t msgId,
-                                   uint8_t *payload, uint16_t length,
+                                   uint8_t* payload, uint16_t length,
                                    uint16_t timeout_ms = 500);
 
   // Configure port to use UBX protocol only (disable NMEA)
@@ -64,8 +65,8 @@ public:
   void setMessageCallback(UBXMessageCallback callback); // Set callback function
   UBXMessageCallback onUBXMessage; ///< Callback for message received
 
-private:
-  Stream *_stream; // Stream interface for reading data
+ private:
+  Stream* _stream; // Stream interface for reading data
 
   // Buffer for reading messages
   static const uint16_t MAX_PAYLOAD_SIZE = 64; // Maximum UBX payload size
@@ -94,11 +95,15 @@ private:
   uint8_t _checksumB;                     // Running checksum B
 
   // Calculate checksum for a block of data
-  void calculateChecksum(uint8_t *buffer, uint16_t len, uint8_t &checksumA,
-                         uint8_t &checksumB);
+  void calculateChecksum(uint8_t* buffer, uint16_t len, uint8_t& checksumA,
+                         uint8_t& checksumB);
 
   // Reset parser state
   void resetParser();
+
+  void printHex(uint8_t val);
+  void printHexBuffer(const __FlashStringHelper* label, uint8_t* buf,
+                      uint16_t len);
 
   // Add to private section of Adafruit_UBX.h
   uint8_t _lastMsgClass;       // Class of last message

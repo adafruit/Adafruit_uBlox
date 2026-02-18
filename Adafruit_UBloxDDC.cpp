@@ -31,7 +31,7 @@
  *  @param  wire
  *          TwoWire instance (default &Wire)
  */
-Adafruit_UBloxDDC::Adafruit_UBloxDDC(uint8_t address, TwoWire *wire) {
+Adafruit_UBloxDDC::Adafruit_UBloxDDC(uint8_t address, TwoWire* wire) {
   _i2cDevice = new Adafruit_I2CDevice(address, wire);
 }
 
@@ -48,7 +48,9 @@ Adafruit_UBloxDDC::~Adafruit_UBloxDDC() {
  *  @brief  Initializes the GPS module and I2C interface
  *  @return True if GPS module responds, false on any failure
  */
-bool Adafruit_UBloxDDC::begin() { return _i2cDevice->begin(); }
+bool Adafruit_UBloxDDC::begin() {
+  return _i2cDevice->begin();
+}
 
 /*!
  *  @brief  Gets the number of bytes available for reading
@@ -131,7 +133,7 @@ size_t Adafruit_UBloxDDC::write(uint8_t val) {
  *  @param  size    Number of bytes to write
  *  @return Number of bytes written
  */
-size_t Adafruit_UBloxDDC::write(const uint8_t *buffer, size_t size) {
+size_t Adafruit_UBloxDDC::write(const uint8_t* buffer, size_t size) {
   // For I2C/DDC, we need at least 2 bytes for a write
   if (size < 2) {
     // Single-byte writes aren't supported
@@ -151,7 +153,7 @@ size_t Adafruit_UBloxDDC::write(const uint8_t *buffer, size_t size) {
  *  @param  length  Maximum number of bytes to read
  *  @return Number of bytes actually read, which may be less than requested
  */
-uint16_t Adafruit_UBloxDDC::readBytes(uint8_t *buffer, uint16_t length) {
+uint16_t Adafruit_UBloxDDC::readBytes(uint8_t* buffer, uint16_t length) {
   if (buffer == nullptr || length == 0) {
     return 0;
   }
@@ -197,7 +199,7 @@ uint16_t Adafruit_UBloxDDC::readBytes(uint8_t *buffer, uint16_t length) {
  *  @param  maxLength  Maximum length of buffer
  *  @return Number of bytes read into the buffer
  */
-uint16_t Adafruit_UBloxDDC::readMessage(uint8_t *buffer, uint16_t maxLength) {
+uint16_t Adafruit_UBloxDDC::readMessage(uint8_t* buffer, uint16_t maxLength) {
   uint16_t bytesAvailable = available();
 
   if (bytesAvailable == 0) {
@@ -214,7 +216,7 @@ uint16_t Adafruit_UBloxDDC::readMessage(uint8_t *buffer, uint16_t maxLength) {
  *  @param  messageLength  Pointer to variable to store message length
  *  @return Pointer to internal buffer containing the message
  */
-uint8_t *Adafruit_UBloxDDC::readMessage(uint16_t *messageLength) {
+uint8_t* Adafruit_UBloxDDC::readMessage(uint16_t* messageLength) {
   *messageLength = readMessage(_buffer, MAX_BUFFER_SIZE);
   return _buffer;
 }

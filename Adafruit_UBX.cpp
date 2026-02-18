@@ -28,7 +28,7 @@
  *  @param  stream Reference to a Stream object (Serial, Adafruit_UBloxDDC,
  * etc.)
  */
-Adafruit_UBX::Adafruit_UBX(Stream &stream) {
+Adafruit_UBX::Adafruit_UBX(Stream& stream) {
   _stream = &stream;
   onUBXMessage = NULL;
 }
@@ -69,42 +69,42 @@ UBXSendStatus Adafruit_UBX::setUBXOnly(UBXPortId portID, bool checkAck,
 
   // Configure the port appropriately
   switch (portID) {
-  case UBX_PORT_DDC: // I2C/DDC port
-    // Set the I2C address to 0x42 (the default)
-    // For DDC, the mode field contains the I2C address in bits 7:1
-    cfgPrt.fields.mode = 0x42 << 1; // 0x84
+    case UBX_PORT_DDC: // I2C/DDC port
+      // Set the I2C address to 0x42 (the default)
+      // For DDC, the mode field contains the I2C address in bits 7:1
+      cfgPrt.fields.mode = 0x42 << 1; // 0x84
 
-    // Set protocol masks to UBX only
-    cfgPrt.fields.inProtoMask = UBX_PROTOCOL_UBX;
-    cfgPrt.fields.outProtoMask = UBX_PROTOCOL_UBX;
-    break;
+      // Set protocol masks to UBX only
+      cfgPrt.fields.inProtoMask = UBX_PROTOCOL_UBX;
+      cfgPrt.fields.outProtoMask = UBX_PROTOCOL_UBX;
+      break;
 
-  case UBX_PORT_UART1: // Fall through
-  case UBX_PORT_UART2: // UART ports
-    // Keep current baud rate (baudRate = 0 keeps current setting)
-    // Set 8N1 mode for binary protocol
-    cfgPrt.fields.mode = UBX_UART_MODE_8N1;
-    // Set protocol masks to UBX only
-    cfgPrt.fields.inProtoMask = UBX_PROTOCOL_UBX;
-    cfgPrt.fields.outProtoMask = UBX_PROTOCOL_UBX;
-    break;
+    case UBX_PORT_UART1: // Fall through
+    case UBX_PORT_UART2: // UART ports
+      // Keep current baud rate (baudRate = 0 keeps current setting)
+      // Set 8N1 mode for binary protocol
+      cfgPrt.fields.mode = UBX_UART_MODE_8N1;
+      // Set protocol masks to UBX only
+      cfgPrt.fields.inProtoMask = UBX_PROTOCOL_UBX;
+      cfgPrt.fields.outProtoMask = UBX_PROTOCOL_UBX;
+      break;
 
-  case UBX_PORT_USB: // USB port
-    // Set protocol masks to UBX only
-    cfgPrt.fields.inProtoMask = UBX_PROTOCOL_UBX;
-    cfgPrt.fields.outProtoMask = UBX_PROTOCOL_UBX;
-    break;
+    case UBX_PORT_USB: // USB port
+      // Set protocol masks to UBX only
+      cfgPrt.fields.inProtoMask = UBX_PROTOCOL_UBX;
+      cfgPrt.fields.outProtoMask = UBX_PROTOCOL_UBX;
+      break;
 
-  case UBX_PORT_SPI: // SPI port
-    // Set protocol masks to UBX only
-    cfgPrt.fields.outProtoMask = UBX_PROTOCOL_UBX;
-    break;
+    case UBX_PORT_SPI: // SPI port
+      // Set protocol masks to UBX only
+      cfgPrt.fields.outProtoMask = UBX_PROTOCOL_UBX;
+      break;
 
-  default:
-    if (verbose_debug > 0) {
-      Serial.println(F("UBX: Invalid port ID"));
-    }
-    return UBX_SEND_FAIL; // Invalid port ID
+    default:
+      if (verbose_debug > 0) {
+        Serial.println(F("UBX: Invalid port ID"));
+      }
+      return UBX_SEND_FAIL; // Invalid port ID
   }
 
   // Send the message and wait for acknowledgment if requested
@@ -145,8 +145,8 @@ void Adafruit_UBX::resetParser() {
  *  @param  checksumA Reference to store the first checksum byte
  *  @param  checksumB Reference to store the second checksum byte
  */
-void Adafruit_UBX::calculateChecksum(uint8_t *buffer, uint16_t len,
-                                     uint8_t &checksumA, uint8_t &checksumB) {
+void Adafruit_UBX::calculateChecksum(uint8_t* buffer, uint16_t len,
+                                     uint8_t& checksumA, uint8_t& checksumB) {
   checksumA = 0;
   checksumB = 0;
 
@@ -154,6 +154,23 @@ void Adafruit_UBX::calculateChecksum(uint8_t *buffer, uint16_t len,
     checksumA += buffer[i];
     checksumB += checksumA;
   }
+}
+
+void Adafruit_UBX::printHex(uint8_t val) {
+  if (val < 0x10)
+    Serial.print(F("0"));
+  Serial.print(val, HEX);
+}
+
+void Adafruit_UBX::printHexBuffer(const __FlashStringHelper* label,
+                                  uint8_t* buf, uint16_t len) {
+  Serial.print(label);
+  Serial.print(F("["));
+  for (uint16_t i = 0; i < len; i++) {
+    printHex(buf[i]);
+    Serial.print(F(" "));
+  }
+  Serial.print(F("] "));
 }
 
 /*!
@@ -169,145 +186,120 @@ bool Adafruit_UBX::checkMessages() {
 
     // State machine for UBX protocol parsing
     switch (_parserState) {
-    case WAIT_SYNC_1:
-      if (incomingByte == UBX_SYNC_CHAR_1) {
-        _parserState = WAIT_SYNC_2;
-        _buffer[0] = incomingByte; // Store for checksum calculation
-      }
-      break;
-
-    case WAIT_SYNC_2:
-      if (incomingByte == UBX_SYNC_CHAR_2) {
-        _parserState = GET_CLASS;
-        _buffer[1] = incomingByte; // Store for checksum calculation
-      } else {
-        resetParser(); // Invalid sync char, reset
-      }
-      break;
-
-    case GET_CLASS:
-      _msgClass = incomingByte;
-      _buffer[2] = incomingByte; // Store for checksum calculation
-      _parserState = GET_ID;
-      break;
-
-    case GET_ID:
-      _msgId = incomingByte;
-      _buffer[3] = incomingByte; // Store for checksum calculation
-      _parserState = GET_LENGTH_1;
-      break;
-
-    case GET_LENGTH_1:
-      _payloadLength = incomingByte;
-      _buffer[4] = incomingByte; // Store for checksum calculation
-      _parserState = GET_LENGTH_2;
-      break;
-
-    case GET_LENGTH_2:
-      _payloadLength |= (incomingByte << 8);
-      _buffer[5] = incomingByte; // Store for checksum calculation
-
-      if (_payloadLength > MAX_PAYLOAD_SIZE) {
-        resetParser(); // Payload too large, reset
-      } else {
-        _payloadCounter = 0;
-        _parserState = GET_PAYLOAD;
-      }
-      break;
-
-    case GET_PAYLOAD:
-      if (_payloadCounter < _payloadLength) {
-        _buffer[6 + _payloadCounter] = incomingByte;
-        _payloadCounter++;
-
-        if (_payloadCounter == _payloadLength) {
-          _parserState = GET_CHECKSUM_A;
+      case WAIT_SYNC_1:
+        if (incomingByte == UBX_SYNC_CHAR_1) {
+          _parserState = WAIT_SYNC_2;
+          _buffer[0] = incomingByte; // Store for checksum calculation
         }
-      }
-      break;
+        break;
 
-    case GET_CHECKSUM_A:
-      // Calculate expected checksum
-      calculateChecksum(_buffer + 2, _payloadLength + 4, _checksumA,
-                        _checksumB);
-
-      if (incomingByte == _checksumA) {
-        _parserState = GET_CHECKSUM_B; // Checksum A matches
-      } else {
-        resetParser(); // Invalid checksum, reset
-      }
-      break;
-
-    case GET_CHECKSUM_B:
-      if (incomingByte == _checksumB) {
-        // We have a valid message!
-        if (onUBXMessage != NULL) {
-          onUBXMessage(_msgClass, _msgId, _payloadLength,
-                       _buffer + 6); // Call the callback with the message
+      case WAIT_SYNC_2:
+        if (incomingByte == UBX_SYNC_CHAR_2) {
+          _parserState = GET_CLASS;
+          _buffer[1] = incomingByte; // Store for checksum calculation
+        } else {
+          resetParser(); // Invalid sync char, reset
         }
-        messageReceived = true;
+        break;
 
-        _lastMsgClass = _msgClass;
-        _lastMsgId = _msgId;
-        _lastPayloadLength = _payloadLength;
+      case GET_CLASS:
+        _msgClass = incomingByte;
+        _buffer[2] = incomingByte; // Store for checksum calculation
+        _parserState = GET_ID;
+        break;
 
-        // Store a small copy of the payload if it's within size limits
-        if (_payloadLength <= sizeof(_lastPayload)) {
-          memcpy(_lastPayload, _buffer + 6, _payloadLength);
+      case GET_ID:
+        _msgId = incomingByte;
+        _buffer[3] = incomingByte; // Store for checksum calculation
+        _parserState = GET_LENGTH_1;
+        break;
+
+      case GET_LENGTH_1:
+        _payloadLength = incomingByte;
+        _buffer[4] = incomingByte; // Store for checksum calculation
+        _parserState = GET_LENGTH_2;
+        break;
+
+      case GET_LENGTH_2:
+        _payloadLength |= (incomingByte << 8);
+        _buffer[5] = incomingByte; // Store for checksum calculation
+
+        if (_payloadLength > MAX_PAYLOAD_SIZE) {
+          resetParser(); // Payload too large, reset
+        } else {
+          _payloadCounter = 0;
+          _parserState = GET_PAYLOAD;
         }
+        break;
 
-        if (verbose_debug > 0) {
-          Serial.print("UBX RX: ");
+      case GET_PAYLOAD:
+        if (_payloadCounter < _payloadLength) {
+          _buffer[6 + _payloadCounter] = incomingByte;
+          _payloadCounter++;
 
-          // Print header (sync chars, class, id, length)
-          Serial.print("HDR[B5 62 ");
-          if (_msgClass < 0x10)
-            Serial.print("0");
-          Serial.print(_msgClass, HEX);
-          Serial.print(" ");
-          if (_msgId < 0x10)
-            Serial.print("0");
-          Serial.print(_msgId, HEX);
-          Serial.print(" ");
+          if (_payloadCounter == _payloadLength) {
+            _parserState = GET_CHECKSUM_A;
+          }
+        }
+        break;
 
-          uint8_t lenLSB = _payloadLength & 0xFF;
-          uint8_t lenMSB = (_payloadLength >> 8) & 0xFF;
-          if (lenLSB < 0x10)
-            Serial.print("0");
-          Serial.print(lenLSB, HEX);
-          Serial.print(" ");
-          if (lenMSB < 0x10)
-            Serial.print("0");
-          Serial.print(lenMSB, HEX);
-          Serial.print("] ");
+      case GET_CHECKSUM_A:
+        // Calculate expected checksum
+        calculateChecksum(_buffer + 2, _payloadLength + 4, _checksumA,
+                          _checksumB);
 
-          // Print payload if verbose debug is enabled
-          if (verbose_debug > 1 && _payloadLength > 0) {
-            Serial.print("PL[");
-            for (uint16_t i = 0; i < _payloadLength; i++) {
-              if (_buffer[6 + i] < 0x10)
-                Serial.print("0");
-              Serial.print(_buffer[6 + i], HEX);
-              Serial.print(" ");
-            }
-            Serial.print("] ");
+        if (incomingByte == _checksumA) {
+          _parserState = GET_CHECKSUM_B; // Checksum A matches
+        } else {
+          resetParser(); // Invalid checksum, reset
+        }
+        break;
+
+      case GET_CHECKSUM_B:
+        if (incomingByte == _checksumB) {
+          // We have a valid message!
+          if (onUBXMessage != NULL) {
+            onUBXMessage(_msgClass, _msgId, _payloadLength,
+                         _buffer + 6); // Call the callback with the message
+          }
+          messageReceived = true;
+
+          _lastMsgClass = _msgClass;
+          _lastMsgId = _msgId;
+          _lastPayloadLength = _payloadLength;
+
+          // Store a small copy of the payload if it's within size limits
+          if (_payloadLength <= sizeof(_lastPayload)) {
+            memcpy(_lastPayload, _buffer + 6, _payloadLength);
           }
 
-          // Print checksum
-          Serial.print("CS[");
-          if (_checksumA < 0x10)
-            Serial.print("0");
-          Serial.print(_checksumA, HEX);
-          Serial.print(" ");
-          if (_checksumB < 0x10)
-            Serial.print("0");
-          Serial.print(_checksumB, HEX);
-          Serial.println("]");
-        }
-      }
+          if (verbose_debug > 0) {
+            Serial.print(F("UBX RX: "));
 
-      resetParser(); // Reset for next message
-      break;
+            // Print header (sync chars, class, id, length)
+            uint8_t hdr[6] = {
+                UBX_SYNC_CHAR_1,
+                UBX_SYNC_CHAR_2,
+                _msgClass,
+                _msgId,
+                static_cast<uint8_t>(_payloadLength & 0xFF),
+                static_cast<uint8_t>((_payloadLength >> 8) & 0xFF)};
+            printHexBuffer(F("HDR"), hdr, 6);
+
+            // Print payload if verbose debug is enabled
+            if (verbose_debug > 1 && _payloadLength > 0) {
+              printHexBuffer(F("PL"), _buffer + 6, _payloadLength);
+            }
+
+            // Print checksum
+            uint8_t checksum[2] = {_checksumA, _checksumB};
+            printHexBuffer(F("CS"), checksum, 2);
+            Serial.println();
+          }
+        }
+
+        resetParser(); // Reset for next message
+        break;
     }
   }
 
@@ -324,7 +316,7 @@ bool Adafruit_UBX::checkMessages() {
  *  @return UBXSendStatus indicating success, failure, or timeout
  */
 UBXSendStatus Adafruit_UBX::sendMessageWithAck(uint8_t msgClass, uint8_t msgId,
-                                               uint8_t *payload,
+                                               uint8_t* payload,
                                                uint16_t length,
                                                uint16_t timeout_ms) {
   // First send the message
@@ -349,13 +341,10 @@ UBXSendStatus Adafruit_UBX::sendMessageWithAck(uint8_t msgClass, uint8_t msgId,
           if (_lastPayload[0] == msgClass && _lastPayload[1] == msgId) {
             if (verbose_debug > 0) {
               Serial.print(F("UBX ACK: SUCCESS for message class 0x"));
-              if (msgClass < 0x10)
-                Serial.print("0");
-              Serial.print(msgClass, HEX);
-              Serial.print(" ID 0x");
-              if (msgId < 0x10)
-                Serial.print("0");
-              Serial.println(msgId, HEX);
+              printHex(msgClass);
+              Serial.print(F(" ID 0x"));
+              printHex(msgId);
+              Serial.println();
             }
             return UBX_SEND_SUCCESS;
           }
@@ -364,13 +353,10 @@ UBXSendStatus Adafruit_UBX::sendMessageWithAck(uint8_t msgClass, uint8_t msgId,
           if (_lastPayload[0] == msgClass && _lastPayload[1] == msgId) {
             if (verbose_debug > 0) {
               Serial.print(F("UBX ACK: NAK for message class 0x"));
-              if (msgClass < 0x10)
-                Serial.print("0");
-              Serial.print(msgClass, HEX);
-              Serial.print(" ID 0x");
-              if (msgId < 0x10)
-                Serial.print("0");
-              Serial.println(msgId, HEX);
+              printHex(msgClass);
+              Serial.print(F(" ID 0x"));
+              printHex(msgId);
+              Serial.println();
             }
             return UBX_SEND_NAK;
           }
@@ -385,13 +371,10 @@ UBXSendStatus Adafruit_UBX::sendMessageWithAck(uint8_t msgClass, uint8_t msgId,
   if (verbose_debug > 0) {
     Serial.print(
         F("UBX ACK: TIMEOUT waiting for ACK/NAK for message class 0x"));
-    if (msgClass < 0x10)
-      Serial.print("0");
-    Serial.print(msgClass, HEX);
-    Serial.print(" ID 0x");
-    if (msgId < 0x10)
-      Serial.print("0");
-    Serial.println(msgId, HEX);
+    printHex(msgClass);
+    Serial.print(F(" ID 0x"));
+    printHex(msgId);
+    Serial.println();
   }
 
   return UBX_SEND_TIMEOUT;
@@ -407,7 +390,7 @@ UBXSendStatus Adafruit_UBX::sendMessageWithAck(uint8_t msgClass, uint8_t msgId,
  *  @return True if message was sent successfully
  */
 bool Adafruit_UBX::sendMessage(uint8_t msgClass, uint8_t msgId,
-                               uint8_t *payload, uint16_t length) {
+                               uint8_t* payload, uint16_t length) {
   // Buffer for message (2 sync chars + class + id + 2 length bytes + payload +
   // 2 checksum bytes)
   uint8_t msgBuffer[length + 8];
@@ -438,40 +421,14 @@ bool Adafruit_UBX::sendMessage(uint8_t msgClass, uint8_t msgId,
 
   // Debug output
   if (verbose_debug > 0) {
-    Serial.print("UBX TX: ");
-
-    // Print header (sync chars, class, id, length)
-    Serial.print("HDR[");
-    for (int i = 0; i < 6; i++) {
-      if (msgBuffer[i] < 0x10)
-        Serial.print("0");
-      Serial.print(msgBuffer[i], HEX);
-      Serial.print(" ");
-    }
-    Serial.print("] ");
-
-    // Print payload if verbose debug is enabled
+    Serial.print(F("UBX TX: "));
+    printHexBuffer(F("HDR"), msgBuffer, 6);
     if (verbose_debug > 1 && length > 0) {
-      Serial.print("PL[");
-      for (uint16_t i = 0; i < length; i++) {
-        if (msgBuffer[6 + i] < 0x10)
-          Serial.print("0");
-        Serial.print(msgBuffer[6 + i], HEX);
-        Serial.print(" ");
-      }
-      Serial.print("] ");
+      printHexBuffer(F("PL"), msgBuffer + 6, length);
     }
-
-    // Print checksum
-    Serial.print("CS[");
-    if (checksumA < 0x10)
-      Serial.print("0");
-    Serial.print(checksumA, HEX);
-    Serial.print(" ");
-    if (checksumB < 0x10)
-      Serial.print("0");
-    Serial.print(checksumB, HEX);
-    Serial.println("]");
+    // CS is the last 2 bytes
+    printHexBuffer(F("CS"), msgBuffer + 6 + length, 2);
+    Serial.println();
   }
 
   // Send the message
