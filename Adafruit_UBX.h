@@ -100,6 +100,10 @@ private:
   // Reset parser state
   void resetParser();
 
+  void printHex(uint8_t val);
+  void printHexBuffer(const __FlashStringHelper *label, uint8_t *buf,
+                      uint16_t len);
+
   // Add to private section of Adafruit_UBX.h
   uint8_t _lastMsgClass;       // Class of last message
   uint8_t _lastMsgId;          // ID of last message

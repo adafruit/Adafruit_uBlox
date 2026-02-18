@@ -156,6 +156,23 @@ void Adafruit_UBX::calculateChecksum(uint8_t *buffer, uint16_t len,
   }
 }
 
+void Adafruit_UBX::printHex(uint8_t val) {
+  if (val < 0x10)
+    Serial.print(F("0"));
+  Serial.print(val, HEX);
+}
+
+void Adafruit_UBX::printHexBuffer(const __FlashStringHelper *label,
+                                 uint8_t *buf, uint16_t len) {
+  Serial.print(label);
+  Serial.print(F("["));
+  for (uint16_t i = 0; i < len; i++) {
+    printHex(buf[i]);
+    Serial.print(F(" "));
+  }
+  Serial.print(F("] "));
+}
+
 /*!
  *  @brief  Check for new UBX messages and parse them
  *  @return True if a complete message was parsed
@@ -257,52 +274,23 @@ bool Adafruit_UBX::checkMessages() {
         }
 
         if (verbose_debug > 0) {
-          Serial.print("UBX RX: ");
+          Serial.print(F("UBX RX: "));
 
           // Print header (sync chars, class, id, length)
-          Serial.print("HDR[B5 62 ");
-          if (_msgClass < 0x10)
-            Serial.print("0");
-          Serial.print(_msgClass, HEX);
-          Serial.print(" ");
-          if (_msgId < 0x10)
-            Serial.print("0");
-          Serial.print(_msgId, HEX);
-          Serial.print(" ");
-
-          uint8_t lenLSB = _payloadLength & 0xFF;
-          uint8_t lenMSB = (_payloadLength >> 8) & 0xFF;
-          if (lenLSB < 0x10)
-            Serial.print("0");
-          Serial.print(lenLSB, HEX);
-          Serial.print(" ");
-          if (lenMSB < 0x10)
-            Serial.print("0");
-          Serial.print(lenMSB, HEX);
-          Serial.print("] ");
+          uint8_t hdr[6] = {UBX_SYNC_CHAR_1, UBX_SYNC_CHAR_2, _msgClass, _msgId,
+                            static_cast<uint8_t>(_payloadLength & 0xFF),
+                            static_cast<uint8_t>((_payloadLength >> 8) & 0xFF)};
+          printHexBuffer(F("HDR"), hdr, 6);
 
           // Print payload if verbose debug is enabled
           if (verbose_debug > 1 && _payloadLength > 0) {
-            Serial.print("PL[");
-            for (uint16_t i = 0; i < _payloadLength; i++) {
-              if (_buffer[6 + i] < 0x10)
-                Serial.print("0");
-              Serial.print(_buffer[6 + i], HEX);
-              Serial.print(" ");
-            }
-            Serial.print("] ");
+            printHexBuffer(F("PL"), _buffer + 6, _payloadLength);
           }
 
           // Print checksum
-          Serial.print("CS[");
-          if (_checksumA < 0x10)
-            Serial.print("0");
-          Serial.print(_checksumA, HEX);
-          Serial.print(" ");
-          if (_checksumB < 0x10)
-            Serial.print("0");
-          Serial.print(_checksumB, HEX);
-          Serial.println("]");
+          uint8_t checksum[2] = {_checksumA, _checksumB};
+          printHexBuffer(F("CS"), checksum, 2);
+          Serial.println();
         }
       }
 
@@ -349,13 +337,10 @@ UBXSendStatus Adafruit_UBX::sendMessageWithAck(uint8_t msgClass, uint8_t msgId,
           if (_lastPayload[0] == msgClass && _lastPayload[1] == msgId) {
             if (verbose_debug > 0) {
               Serial.print(F("UBX ACK: SUCCESS for message class 0x"));
-              if (msgClass < 0x10)
-                Serial.print("0");
-              Serial.print(msgClass, HEX);
-              Serial.print(" ID 0x");
-              if (msgId < 0x10)
-                Serial.print("0");
-              Serial.println(msgId, HEX);
+              printHex(msgClass);
+              Serial.print(F(" ID 0x"));
+              printHex(msgId);
+              Serial.println();
             }
             return UBX_SEND_SUCCESS;
           }
@@ -364,13 +349,10 @@ UBXSendStatus Adafruit_UBX::sendMessageWithAck(uint8_t msgClass, uint8_t msgId,
           if (_lastPayload[0] == msgClass && _lastPayload[1] == msgId) {
             if (verbose_debug > 0) {
               Serial.print(F("UBX ACK: NAK for message class 0x"));
-              if (msgClass < 0x10)
-                Serial.print("0");
-              Serial.print(msgClass, HEX);
-              Serial.print(" ID 0x");
-              if (msgId < 0x10)
-                Serial.print("0");
-              Serial.println(msgId, HEX);
+              printHex(msgClass);
+              Serial.print(F(" ID 0x"));
+              printHex(msgId);
+              Serial.println();
             }
             return UBX_SEND_NAK;
           }
@@ -385,13 +367,10 @@ UBXSendStatus Adafruit_UBX::sendMessageWithAck(uint8_t msgClass, uint8_t msgId,
   if (verbose_debug > 0) {
     Serial.print(
         F("UBX ACK: TIMEOUT waiting for ACK/NAK for message class 0x"));
-    if (msgClass < 0x10)
-      Serial.print("0");
-    Serial.print(msgClass, HEX);
-    Serial.print(" ID 0x");
-    if (msgId < 0x10)
-      Serial.print("0");
-    Serial.println(msgId, HEX);
+    printHex(msgClass);
+    Serial.print(F(" ID 0x"));
+    printHex(msgId);
+    Serial.println();
   }
 
   return UBX_SEND_TIMEOUT;
@@ -438,40 +417,14 @@ bool Adafruit_UBX::sendMessage(uint8_t msgClass, uint8_t msgId,
 
   // Debug output
   if (verbose_debug > 0) {
-    Serial.print("UBX TX: ");
-
-    // Print header (sync chars, class, id, length)
-    Serial.print("HDR[");
-    for (int i = 0; i < 6; i++) {
-      if (msgBuffer[i] < 0x10)
-        Serial.print("0");
-      Serial.print(msgBuffer[i], HEX);
-      Serial.print(" ");
-    }
-    Serial.print("] ");
-
-    // Print payload if verbose debug is enabled
+    Serial.print(F("UBX TX: "));
+    printHexBuffer(F("HDR"), msgBuffer, 6);
     if (verbose_debug > 1 && length > 0) {
-      Serial.print("PL[");
-      for (uint16_t i = 0; i < length; i++) {
-        if (msgBuffer[6 + i] < 0x10)
-          Serial.print("0");
-        Serial.print(msgBuffer[6 + i], HEX);
-        Serial.print(" ");
-      }
-      Serial.print("] ");
+      printHexBuffer(F("PL"), msgBuffer + 6, length);
     }
-
-    // Print checksum
-    Serial.print("CS[");
-    if (checksumA < 0x10)
-      Serial.print("0");
-    Serial.print(checksumA, HEX);
-    Serial.print(" ");
-    if (checksumB < 0x10)
-      Serial.print("0");
-    Serial.print(checksumB, HEX);
-    Serial.println("]");
+    // CS is the last 2 bytes
+    printHexBuffer(F("CS"), msgBuffer + 6 + length, 2);
+    Serial.println();
   }
 
   // Send the message
