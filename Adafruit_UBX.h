@@ -125,6 +125,23 @@ class Adafruit_UBX {
   bool setCfgRxm(UBX_CFG_RXM_t* rxm);
   bool setPowerSave(bool enable);
 
+  // Phase 4: Power Management messages
+  // CFG-PM2: Extended power management configuration
+  bool pollCfgPm2(UBX_CFG_PM2_t* pm2, uint16_t timeout_ms = 1000);
+  bool setCfgPm2(UBX_CFG_PM2_t* pm2);
+
+  // CFG-PMS: Power mode setup
+  bool pollCfgPms(UBX_CFG_PMS_t* pms, uint16_t timeout_ms = 1000);
+  bool setCfgPms(UBX_CFG_PMS_t* pms);
+  bool setPowerMode(uint8_t mode);
+
+  // RXM-PMREQ: Power management request (send-only, no ACK)
+  bool sendPmreq(uint32_t duration, uint32_t flags);
+  bool sendPmreqV1(uint32_t duration, uint32_t flags, uint32_t wakeupSources);
+
+  // MON-HW: Hardware status
+  bool pollMonHw(UBX_MON_HW_t* hw, uint16_t timeout_ms = 1000);
+
   void setMessageCallback(UBXMessageCallback callback); // Set callback function
   UBXMessageCallback onUBXMessage; ///< Callback for message received
 

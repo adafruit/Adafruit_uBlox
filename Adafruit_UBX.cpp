@@ -1053,3 +1053,117 @@ bool Adafruit_UBX::setPowerSave(bool enable) {
 }
 
 // =====================================================================
+// Phase 4: Power Management Message Implementations
+// =====================================================================
+
+/*!
+ *  @brief  Poll CFG-PM2 message (extended power management configuration)
+ *  @param  pm2 Pointer to struct to fill
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return True if response received
+ */
+bool Adafruit_UBX::pollCfgPm2(UBX_CFG_PM2_t* pm2, uint16_t timeout_ms) {
+  return poll(UBX_CLASS_CFG, UBX_CFG_PM2, pm2, sizeof(UBX_CFG_PM2_t),
+              timeout_ms);
+}
+
+/*!
+ *  @brief  Set CFG-PM2 message (extended power management configuration)
+ *  @param  pm2 Pointer to struct with settings to apply
+ *  @return True if acknowledged
+ */
+bool Adafruit_UBX::setCfgPm2(UBX_CFG_PM2_t* pm2) {
+  UBXSendStatus status = sendMessageWithAck(
+      UBX_CLASS_CFG, UBX_CFG_PM2, (uint8_t*)pm2, sizeof(UBX_CFG_PM2_t));
+  return (status == UBX_SEND_SUCCESS);
+}
+
+/*!
+ *  @brief  Poll CFG-PMS message (power mode setup)
+ *  @param  pms Pointer to struct to fill
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return True if response received
+ */
+bool Adafruit_UBX::pollCfgPms(UBX_CFG_PMS_t* pms, uint16_t timeout_ms) {
+  return poll(UBX_CLASS_CFG, UBX_CFG_PMS, pms, sizeof(UBX_CFG_PMS_t),
+              timeout_ms);
+}
+
+/*!
+ *  @brief  Set CFG-PMS message (power mode setup)
+ *  @param  pms Pointer to struct with settings to apply
+ *  @return True if acknowledged
+ */
+bool Adafruit_UBX::setCfgPms(UBX_CFG_PMS_t* pms) {
+  UBXSendStatus status = sendMessageWithAck(
+      UBX_CLASS_CFG, UBX_CFG_PMS, (uint8_t*)pms, sizeof(UBX_CFG_PMS_t));
+  return (status == UBX_SEND_SUCCESS);
+}
+
+/*!
+ *  @brief  Set power mode using simple preset values
+ *  @param  mode Power mode: 0=Full, 1=Balanced, 2=Interval,
+ *               3=Aggressive1Hz, 4=Aggressive2Hz, 5=Aggressive4Hz
+ *  @return True if acknowledged
+ */
+bool Adafruit_UBX::setPowerMode(uint8_t mode) {
+  UBX_CFG_PMS_t pms;
+  memset(&pms, 0, sizeof(pms));
+  pms.version = 0;
+  pms.powerSetupValue = mode;
+  // period and onTime only used for Interval mode (0x02)
+  // For other modes, they must be 0
+  pms.period = 0;
+  pms.onTime = 0;
+  return setCfgPms(&pms);
+}
+
+/*!
+ *  @brief  Send RXM-PMREQ (v0) to request power management task
+ *  @param  duration Duration of task in ms. 0=wake on pin only. Max ~12 days.
+ *  @param  flags Task flags (use UBX_PMREQ_FLAG_BACKUP to enter backup mode)
+ *  @return True if message was sent (no ACK expected - module enters backup)
+ *  @note   This is a send-only command. Do NOT expect ACK/NAK response.
+ *          The module will enter backup mode immediately upon receiving this.
+ */
+bool Adafruit_UBX::sendPmreq(uint32_t duration, uint32_t flags) {
+  UBX_RXM_PMREQ_t pmreq;
+  pmreq.duration = duration;
+  pmreq.flags = flags;
+  // Send without waiting for ACK - module enters backup immediately
+  return sendMessage(UBX_CLASS_RXM, UBX_RXM_PMREQ, (uint8_t*)&pmreq,
+                     sizeof(pmreq));
+}
+
+/*!
+ *  @brief  Send RXM-PMREQ (v1) with wakeup source configuration
+ *  @param  duration Duration of task in ms. 0=wake on pin only. Max ~12 days.
+ *  @param  flags Task flags (UBX_PMREQ_FLAG_BACKUP, UBX_PMREQ_FLAG_FORCE)
+ *  @param  wakeupSources Wakeup pins (UBX_PMREQ_WAKE_UARTRX, EXTINT0, etc.)
+ *  @return True if message was sent (no ACK expected - module enters backup)
+ *  @note   This is a send-only command. Do NOT expect ACK/NAK response.
+ */
+bool Adafruit_UBX::sendPmreqV1(uint32_t duration, uint32_t flags,
+                               uint32_t wakeupSources) {
+  UBX_RXM_PMREQ_V1_t pmreq;
+  pmreq.version = 0;
+  memset(pmreq.reserved1, 0, sizeof(pmreq.reserved1));
+  pmreq.duration = duration;
+  pmreq.flags = flags;
+  pmreq.wakeupSources = wakeupSources;
+  // Send without waiting for ACK - module enters backup immediately
+  return sendMessage(UBX_CLASS_RXM, UBX_RXM_PMREQ, (uint8_t*)&pmreq,
+                     sizeof(pmreq));
+}
+
+/*!
+ *  @brief  Poll MON-HW message (hardware status)
+ *  @param  hw Pointer to struct to fill
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return True if response received
+ */
+bool Adafruit_UBX::pollMonHw(UBX_MON_HW_t* hw, uint16_t timeout_ms) {
+  return poll(UBX_CLASS_MON, UBX_MON_HW, hw, sizeof(UBX_MON_HW_t), timeout_ms);
+}
+
+// =====================================================================

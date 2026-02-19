@@ -50,6 +50,7 @@ typedef enum {
   UBX_CFG_NMEA = 0x17,  // NMEA Protocol Configuration
   UBX_CFG_NAVX5 = 0x23, // Navigation Engine Expert Settings
   UBX_CFG_NAV5 = 0x24,  // Navigation Engine Settings
+  UBX_CFG_PM2 = 0x3B,   // Extended Power Management Configuration
   UBX_CFG_GNSS = 0x3E,  // GNSS Configuration
   UBX_CFG_PMS = 0x86    // Power Mode Setup
 } UBXCfgMessageId;
@@ -227,6 +228,14 @@ typedef struct __attribute__((packed)) {
 } UBX_CFG_CFG_t;
 
 static_assert(sizeof(UBX_CFG_CFG_t) == 12, "UBX_CFG_CFG_t must be 12 bytes");
+
+/** UBX RXM Message IDs. */
+typedef enum {
+  UBX_RXM_PMREQ = 0x41, // Power Management Request
+  UBX_RXM_RAWX = 0x15,  // Multi-GNSS Raw Measurements
+  UBX_RXM_SFRBX = 0x13, // Broadcast Navigation Data Subframe
+  UBX_RXM_SVSI = 0x20   // SV Status Info
+} UBXRxmMessageId;
 
 /** UBX MON Message IDs. */
 typedef enum {
@@ -637,5 +646,149 @@ static_assert(sizeof(UBX_CFG_RXM_t) == 2, "UBX_CFG_RXM_t must be 2 bytes");
 // CFG-RXM low power mode values
 #define UBX_RXM_LPMODE_CONTINUOUS 0 ///< Continuous mode
 #define UBX_RXM_LPMODE_POWERSAVE 1  ///< Power save mode
+
+/** UBX-CFG-PM2 (0x06 0x3B) - Extended Power Management Configuration.
+ *  44 bytes. Controls power save mode parameters.
+ *  Note: Not supported on ADR, FTS, or HPG products.
+ */
+typedef struct __attribute__((packed)) {
+  uint8_t version;            ///< Message version (0x02 for this version)
+  uint8_t reserved1;          ///< Reserved
+  uint8_t maxStartupStateDur; ///< Max time in acquisition state (s), 0=disabled
+  uint8_t reserved2;          ///< Reserved
+  uint32_t flags;             ///< PSM configuration flags (see defines below)
+  uint32_t updatePeriod;      ///< Position update period (ms), 0=no retry
+  uint32_t searchPeriod;      ///< Acquisition retry period (ms), 0=no retry
+  uint32_t gridOffset;   ///< Grid offset relative to GPS start of week (ms)
+  uint16_t onTime;       ///< Time to stay in tracking state (s)
+  uint16_t minAcqTime;   ///< Minimal search time (s)
+  uint8_t reserved3[20]; ///< Reserved
+} UBX_CFG_PM2_t;
+
+static_assert(sizeof(UBX_CFG_PM2_t) == 44, "UBX_CFG_PM2_t must be 44 bytes");
+
+// CFG-PM2 flags bitfield
+#define UBX_PM2_FLAG_EXTINTSEL \
+  0x00000010 ///< EXTINT pin select (0=EXTINT0, 1=EXTINT1)
+#define UBX_PM2_FLAG_EXTINTWAKE 0x00000020     ///< EXTINT wake enable
+#define UBX_PM2_FLAG_EXTINTBACKUP 0x00000040   ///< EXTINT backup enable
+#define UBX_PM2_FLAG_EXTINTINACTIVE 0x00000080 ///< EXTINT inactivity enable
+#define UBX_PM2_FLAG_LIMITPEAKCURR_DIS \
+  0x00000000 ///< Limit peak current disabled
+#define UBX_PM2_FLAG_LIMITPEAKCURR_EN 0x00000400 ///< Limit peak current enabled
+#define UBX_PM2_FLAG_WAITTIMEFIX \
+  0x00010000                              ///< Wait for time fix (vs normal fix)
+#define UBX_PM2_FLAG_UPDATERTC 0x00020000 ///< Update RTC
+#define UBX_PM2_FLAG_UPDATEEPH 0x00040000 ///< Update ephemeris
+#define UBX_PM2_FLAG_DONOTENTEROFF \
+  0x00200000                                ///< Don't enter inactive on no fix
+#define UBX_PM2_FLAG_MODE_ONOFF 0x00000000  ///< ON/OFF mode (PSMOO)
+#define UBX_PM2_FLAG_MODE_CYCLIC 0x00400000 ///< Cyclic tracking mode (PSMCT)
+
+/** UBX-CFG-PMS (0x06 0x86) - Power Mode Setup.
+ *  8 bytes. Simple power mode configuration.
+ */
+typedef struct __attribute__((packed)) {
+  uint8_t version;         ///< Message version (0x00)
+  uint8_t powerSetupValue; ///< Power mode: 0=Full, 1=Balanced, 2=Interval,
+                           ///< 3=Aggressive1Hz, 4=Aggressive2Hz,
+                           ///< 5=Aggressive4Hz, 0xFF=Invalid
+  uint16_t period; ///< Position update/search period (s). Min 10s recommended.
+                   ///< Only for Interval mode, else 0.
+  uint16_t onTime; ///< ON phase duration (s). Must be < period.
+                   ///< Only for Interval mode, else 0.
+  uint8_t reserved1[2]; ///< Reserved
+} UBX_CFG_PMS_t;
+
+static_assert(sizeof(UBX_CFG_PMS_t) == 8, "UBX_CFG_PMS_t must be 8 bytes");
+
+// CFG-PMS power setup values
+#define UBX_PMS_FULLPOWER 0x00      ///< Full power mode
+#define UBX_PMS_BALANCED 0x01       ///< Balanced power mode
+#define UBX_PMS_INTERVAL 0x02       ///< Interval power mode
+#define UBX_PMS_AGGRESSIVE_1HZ 0x03 ///< Aggressive 1 Hz mode
+#define UBX_PMS_AGGRESSIVE_2HZ 0x04 ///< Aggressive 2 Hz mode
+#define UBX_PMS_AGGRESSIVE_4HZ 0x05 ///< Aggressive 4 Hz mode
+#define UBX_PMS_INVALID 0xFF        ///< Invalid (poll response only)
+
+/** UBX-RXM-PMREQ (0x02 0x41) - Power Management Request (v0).
+ *  8 bytes. Send-only command to request power management task.
+ *  Do NOT expect ACK - module enters backup mode immediately.
+ */
+typedef struct __attribute__((packed)) {
+  uint32_t
+      duration;   ///< Duration of task (ms). Max ~12 days. 0=wake on pin only.
+  uint32_t flags; ///< Task flags (see defines below)
+} UBX_RXM_PMREQ_t;
+
+static_assert(sizeof(UBX_RXM_PMREQ_t) == 8, "UBX_RXM_PMREQ_t must be 8 bytes");
+
+/** UBX-RXM-PMREQ (0x02 0x41) - Power Management Request (v1).
+ *  16 bytes. Extended version with wakeup source configuration.
+ */
+typedef struct __attribute__((packed)) {
+  uint8_t version;      ///< Message version (0x00)
+  uint8_t reserved1[3]; ///< Reserved
+  uint32_t duration;    ///< Duration of task (ms). Max ~12 days. 0=wake on pin.
+  uint32_t flags;       ///< Task flags (see defines below)
+  uint32_t wakeupSources; ///< Wakeup source configuration (see defines below)
+} UBX_RXM_PMREQ_V1_t;
+
+static_assert(sizeof(UBX_RXM_PMREQ_V1_t) == 16,
+              "UBX_RXM_PMREQ_V1_t must be 16 bytes");
+
+// RXM-PMREQ flags
+#define UBX_PMREQ_FLAG_BACKUP 0x00000002 ///< Enter backup mode
+#define UBX_PMREQ_FLAG_FORCE 0x00000004  ///< Force backup even on USB (v1 only)
+
+// RXM-PMREQ wakeup sources (v1 only)
+#define UBX_PMREQ_WAKE_UARTRX 0x00000008  ///< Wake on UART RX edge
+#define UBX_PMREQ_WAKE_EXTINT0 0x00000020 ///< Wake on EXTINT0 edge
+#define UBX_PMREQ_WAKE_EXTINT1 0x00000040 ///< Wake on EXTINT1 edge
+#define UBX_PMREQ_WAKE_SPICS 0x00000080   ///< Wake on SPI CS edge
+
+/** UBX-MON-HW (0x0A 0x09) - Hardware Status.
+ *  60 bytes. Reports antenna, PIO, noise level, and AGC status.
+ */
+typedef struct __attribute__((packed)) {
+  uint32_t pinSel;      ///< Mask of pins set as peripheral/PIO
+  uint32_t pinBank;     ///< Mask of pins set as bank A/B
+  uint32_t pinDir;      ///< Mask of pins set as input/output
+  uint32_t pinVal;      ///< Mask of pins value low/high
+  uint16_t noisePerMS;  ///< Noise level as measured by GPS core
+  uint16_t agcCnt;      ///< AGC monitor (0-8191 = 0-100%)
+  uint8_t aStatus;      ///< Antenna supervisor state: 0=INIT, 1=DONTKNOW,
+                        ///< 2=OK, 3=SHORT, 4=OPEN
+  uint8_t aPower;       ///< Antenna power: 0=OFF, 1=ON, 2=DONTKNOW
+  uint8_t flags;        ///< Flags (see defines below)
+  uint8_t reserved1;    ///< Reserved
+  uint32_t usedMask;    ///< Mask of pins used by virtual pin manager
+  uint8_t VP[17];       ///< Pin mappings for 17 physical pins
+  uint8_t jamInd;       ///< CW jamming indicator (0=none, 255=strong)
+  uint8_t reserved2[2]; ///< Reserved
+  uint32_t pinIrq;      ///< Mask of pins using PIO IRQ
+  uint32_t pullH;       ///< Mask of pins using pull-high resistor
+  uint32_t pullL;       ///< Mask of pins using pull-low resistor
+} UBX_MON_HW_t;
+
+static_assert(sizeof(UBX_MON_HW_t) == 60, "UBX_MON_HW_t must be 60 bytes");
+
+// MON-HW flags
+#define UBX_MON_HW_FLAG_RTCCALIB 0x01      ///< RTC is calibrated
+#define UBX_MON_HW_FLAG_SAFEBOOT 0x02      ///< Safeboot mode active
+#define UBX_MON_HW_FLAG_JAMSTATE_MASK 0x0C ///< Jamming state mask (bits 2-3)
+#define UBX_MON_HW_FLAG_XTALABSENT 0x10    ///< RTC xtal absent
+
+// MON-HW antenna status values
+#define UBX_MON_HW_ASTATUS_INIT 0     ///< Antenna supervisor initializing
+#define UBX_MON_HW_ASTATUS_DONTKNOW 1 ///< Status unknown
+#define UBX_MON_HW_ASTATUS_OK 2       ///< Antenna OK
+#define UBX_MON_HW_ASTATUS_SHORT 3    ///< Antenna short circuit
+#define UBX_MON_HW_ASTATUS_OPEN 4     ///< Antenna open/not connected
+
+// MON-HW antenna power values
+#define UBX_MON_HW_APOWER_OFF 0      ///< Antenna power off
+#define UBX_MON_HW_APOWER_ON 1       ///< Antenna power on
+#define UBX_MON_HW_APOWER_DONTKNOW 2 ///< Antenna power unknown
 
 #endif // ADAFRUIT_UBLOX_TYPEDEF_H
