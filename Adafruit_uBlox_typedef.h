@@ -117,6 +117,26 @@ typedef struct __attribute__((packed)) {
 static_assert(sizeof(UBX_NAV_PVT_t) == 92, "UBX_NAV_PVT_t must be 92 bytes");
 #endif
 
+/** UBX-NAV-STATUS (0x01 0x03) - Receiver Navigation Status.
+ *  16 bytes. Provides fix type, fix status flags, TTFF, and uptime.
+ */
+typedef struct __attribute__((packed)) {
+  uint32_t iTOW; ///< GPS time of week (ms)
+  uint8_t
+      gpsFix;    ///< Fix type: 0=none, 1=DR, 2=2D, 3=3D, 4=GNSS+DR, 5=time only
+  uint8_t flags; ///< Fix flags (bit0=gpsFixOk, bit1=diffSoln, bit2=wknSet,
+                 ///< bit3=towSet)
+  uint8_t fixStat; ///< Fix status (bit0=diffCorr, bit1=carrSolnValid,
+                   ///< bits6-7=mapMatching)
+  uint8_t flags2;  ///< Additional flags (bits0-2=psmState,
+                   ///< bits3-4=spoofDetState, bits6-7=carrSoln)
+  uint32_t ttff;   ///< Time to first fix (ms)
+  uint32_t msss;   ///< Milliseconds since startup/reset (ms)
+} UBX_NAV_STATUS_t;
+
+static_assert(sizeof(UBX_NAV_STATUS_t) == 16,
+              "UBX_NAV_STATUS_t must be 16 bytes");
+
 /** Return values for functions that wait for acknowledgment. */
 typedef enum {
   UBX_SEND_SUCCESS = 0, // Message was acknowledged (ACK)
