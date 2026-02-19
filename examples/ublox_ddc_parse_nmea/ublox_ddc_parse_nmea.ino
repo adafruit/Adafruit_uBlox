@@ -1,8 +1,8 @@
 /*!
  * @file ublox_ddc_parse_nmea.ino
  *
- * Example sketch demonstrating parsing NMEA sentences from a u-blox GPS/RTK module
- * using the Adafruit_GPS and Adafruit_UBX libraries.
+ * Example sketch demonstrating parsing NMEA sentences from a u-blox GPS/RTK
+ * module using the Adafruit_GPS and Adafruit_UBX libraries.
  *
  * Written by Brent Rubell for Adafruit Industries.
  *
@@ -76,26 +76,29 @@ void setup() {
 
   // Initialize GPS module
   if (!gps.begin()) {
-    Serial.println("Failed to initialize GPS module!");
-    while (1); // Halt if initialization fails
+    Serial.println(F("Failed to initialize GPS module!"));
+    while (1)
+      ; // Halt if initialization fails
   }
-  Serial.println("GPS module initialized successfully!");
+  Serial.println(F("GPS module initialized successfully!"));
 
   // Initialize the u-blox parser
   if (!ubx.begin()) {
-    Serial.println("Failed to initialize u-blox parser!");
-    while (1); // Halt if initialization fails
+    Serial.println(F("Failed to initialize u-blox parser!"));
+    while (1)
+      ; // Halt if initialization fails
   }
-  Serial.println("u-blox parser initialized successfully!");
+  Serial.println(F("u-blox parser initialized successfully!"));
   ubx.verbose_debug = 3; // Set debug level to verbose
 
   // Set NMEA output on DDC to RMC and GGA sentences only
   UBXSendStatus status = SetNMEAOutputRMCGGAOnly();
   if (status != UBX_SEND_SUCCESS) {
-    Serial.print("Failed to configure NMEA output [status code: ");
+    Serial.print(F("Failed to configure NMEA output [status code: "));
     Serial.print(status);
-    Serial.println("]");
-    while (1); // Halt if setting NMEA output fails
+    Serial.println(F("]"));
+    while (1)
+      ; // Halt if setting NMEA output fails
   }
 }
 
@@ -131,7 +134,7 @@ void loop() {
           // approximately every 2 seconds or so, print out the current stats
           if (millis() - timer > 2000) {
             timer = millis(); // reset the timer
-            Serial.print("\nTime: ");
+            Serial.print(F("\nTime: "));
             if (NMEA.hour < 10) {
               Serial.print('0');
             }
@@ -148,40 +151,40 @@ void loop() {
             Serial.print(NMEA.seconds, DEC);
             Serial.print('.');
             if (NMEA.milliseconds < 10) {
-              Serial.print("00");
+              Serial.print(F("00"));
             } else if (NMEA.milliseconds > 9 && NMEA.milliseconds < 100) {
-              Serial.print("0");
+              Serial.print(F("0"));
             }
             Serial.println(NMEA.milliseconds);
-            Serial.print("Date: ");
+            Serial.print(F("Date: "));
             Serial.print(NMEA.day, DEC);
             Serial.print('/');
             Serial.print(NMEA.month, DEC);
-            Serial.print("/20");
+            Serial.print(F("/20"));
             Serial.println(NMEA.year, DEC);
-            Serial.print("Fix: ");
+            Serial.print(F("Fix: "));
             Serial.print((int)NMEA.fix);
-            Serial.print(" quality: ");
+            Serial.print(F(" quality: "));
             Serial.println((int)NMEA.fixquality);
             if (NMEA.fix) {
-              Serial.print("Location: ");
+              Serial.print(F("Location: "));
               Serial.print(NMEA.latitude, 4);
               Serial.print(NMEA.lat);
-              Serial.print(", ");
+              Serial.print(F(", "));
               Serial.print(NMEA.longitude, 4);
               Serial.println(NMEA.lon);
-              Serial.print("Speed (knots): ");
+              Serial.print(F("Speed (knots): "));
               Serial.println(NMEA.speed);
-              Serial.print("Angle: ");
+              Serial.print(F("Angle: "));
               Serial.println(NMEA.angle);
-              Serial.print("Altitude: ");
+              Serial.print(F("Altitude: "));
               Serial.println(NMEA.altitude);
-              Serial.print("Satellites: ");
+              Serial.print(F("Satellites: "));
               Serial.println((int)NMEA.satellites);
             }
           }
         } else {
-          Serial.println("Failed to parse sentence.");
+          Serial.println(F("Failed to parse sentence."));
         }
         nmeaSentenceIdx = 0; // Reset index for next sentence
       }

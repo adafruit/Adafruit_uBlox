@@ -22,11 +22,11 @@ uint32_t attempt = 0;
 unsigned long fix_start_ms = 0;
 
 void printTestResult(const __FlashStringHelper* name, bool pass) {
-  Serial.print("  [");
+  Serial.print(F("  ["));
   Serial.print(pass ? "PASS" : "FAIL");
-  Serial.print("] ");
+  Serial.print(F("] "));
   Serial.print(name);
-  Serial.print(": ");
+  Serial.print(F(": "));
 }
 
 void printDate(uint16_t year, uint8_t month, uint8_t day) {
@@ -46,7 +46,7 @@ uint8_t runTests(const UBX_NAV_PVT_t& pvt) {
   const uint8_t total = 12;
 
   Serial.println();
-  Serial.println("Running tests...");
+  Serial.println(F("Running tests..."));
 
   bool fix_type = (pvt.fixType == 2) || (pvt.fixType == 3);
   printTestResult(F("fix_type"), fix_type);
@@ -101,7 +101,7 @@ uint8_t runTests(const UBX_NAV_PVT_t& pvt) {
   bool altitude_range = altitude_m >= -500.0 && altitude_m <= 10000.0;
   printTestResult(F("altitude_range"), altitude_range);
   Serial.print(altitude_m, 1);
-  Serial.println(" m");
+  Serial.println(F(" m"));
   if (altitude_range)
     passed++;
 
@@ -109,7 +109,7 @@ uint8_t runTests(const UBX_NAV_PVT_t& pvt) {
   bool accuracy_h = pvt.hAcc < 100000;
   printTestResult(F("accuracy_h"), accuracy_h);
   Serial.print(hacc_m, 1);
-  Serial.println(" m");
+  Serial.println(F(" m"));
   if (accuracy_h)
     passed++;
 
@@ -117,7 +117,7 @@ uint8_t runTests(const UBX_NAV_PVT_t& pvt) {
   bool accuracy_v = pvt.vAcc < 200000;
   printTestResult(F("accuracy_v"), accuracy_v);
   Serial.print(vacc_m, 1);
-  Serial.println(" m");
+  Serial.println(F(" m"));
   if (accuracy_v)
     passed++;
 
@@ -132,66 +132,66 @@ uint8_t runTests(const UBX_NAV_PVT_t& pvt) {
   bool ground_speed = pvt.gSpeed >= 0 && pvt.gSpeed < 1000000;
   printTestResult(F("ground_speed"), ground_speed);
   Serial.print(gspeed_ms, 3);
-  Serial.println(" m/s");
+  Serial.println(F(" m/s"));
   if (ground_speed)
     passed++;
 
   Serial.println();
-  Serial.print("Results: ");
+  Serial.print(F("Results: "));
   Serial.print(passed);
-  Serial.print("/");
+  Serial.print(F("/"));
   Serial.print(total);
-  Serial.println(" tests passed");
+  Serial.println(F(" tests passed"));
 
   return passed;
 }
 
 void printPVT(const UBX_NAV_PVT_t& pvt) {
-  Serial.println("--- NAV-PVT ---");
+  Serial.println(F("--- NAV-PVT ---"));
 
-  Serial.print("Time: ");
+  Serial.print(F("Time: "));
   printDate(pvt.year, pvt.month, pvt.day);
-  Serial.print(" ");
+  Serial.print(F(" "));
   printTime(pvt.hour, pvt.min, pvt.sec);
   Serial.println();
 
-  Serial.print("Fix type: ");
+  Serial.print(F("Fix type: "));
   Serial.print(pvt.fixType);
-  Serial.print("  Sats: ");
+  Serial.print(F("  Sats: "));
   Serial.print(pvt.numSV);
-  Serial.print("  Fix OK: ");
+  Serial.print(F("  Fix OK: "));
   Serial.println(pvt.flags & 0x01);
 
-  Serial.print("Valid: date=");
+  Serial.print(F("Valid: date="));
   Serial.print(pvt.valid & 0x01);
-  Serial.print(" time=");
+  Serial.print(F(" time="));
   Serial.print((pvt.valid >> 1) & 0x01);
-  Serial.print(" resolved=");
+  Serial.print(F(" resolved="));
   Serial.println((pvt.valid >> 2) & 0x01);
 
-  Serial.print("Lat: ");
+  Serial.print(F("Lat: "));
   Serial.print(pvt.lat * 1e-7, 7);
-  Serial.println(" deg");
-  Serial.print("Lon: ");
+  Serial.println(F(" deg"));
+  Serial.print(F("Lon: "));
   Serial.print(pvt.lon * 1e-7, 7);
-  Serial.println(" deg");
-  Serial.print("Height: ");
+  Serial.println(F(" deg"));
+  Serial.print(F("Height: "));
   Serial.print(pvt.hMSL / 1000.0, 1);
-  Serial.println(" m (MSL)");
-  Serial.print("hAcc: ");
+  Serial.println(F(" m (MSL)"));
+  Serial.print(F("hAcc: "));
   Serial.print(pvt.hAcc / 1000.0, 1);
-  Serial.print(" m  vAcc: ");
+  Serial.print(F(" m  vAcc: "));
   Serial.print(pvt.vAcc / 1000.0, 1);
-  Serial.println(" m");
+  Serial.println(F(" m"));
 
-  Serial.print("Ground speed: ");
+  Serial.print(F("Ground speed: "));
   Serial.print(pvt.gSpeed / 1000.0, 3);
-  Serial.println(" m/s");
-  Serial.print("Heading: ");
+  Serial.println(F(" m/s"));
+  Serial.print(F("Heading: "));
   Serial.print(pvt.headMot * 1e-5, 1);
-  Serial.println(" deg");
+  Serial.println(F(" deg"));
 
-  Serial.print("pDOP: ");
+  Serial.print(F("pDOP: "));
   Serial.println(pvt.pDOP * 0.01, 2);
 
   Serial.println();
@@ -202,27 +202,27 @@ void setup() {
   while (!Serial)
     delay(10);
 
-  Serial.println("=== UBX-NAV-PVT Message Test ===");
+  Serial.println(F("=== UBX-NAV-PVT Message Test ==="));
 
   if (!ddc.begin()) {
-    Serial.println("FAIL: Could not connect to GPS module!");
+    Serial.println(F("FAIL: Could not connect to GPS module!"));
     while (1)
       delay(10);
   }
-  Serial.println("GPS module connected on I2C");
+  Serial.println(F("GPS module connected on I2C"));
 
   if (!ubx.begin()) {
-    Serial.println("FAIL: UBX parser init failed!");
+    Serial.println(F("FAIL: UBX parser init failed!"));
     while (1)
       delay(10);
   }
 
   UBXSendStatus status = ubx.setUBXOnly(UBX_PORT_DDC, true, 1000);
   if (status != UBX_SEND_SUCCESS) {
-    Serial.print("WARNING: setUBXOnly status: ");
+    Serial.print(F("WARNING: setUBXOnly status: "));
     Serial.println(status);
   } else {
-    Serial.println("UBX-only mode set on DDC port");
+    Serial.println(F("UBX-only mode set on DDC port"));
   }
 
   Serial.println();
@@ -237,26 +237,26 @@ void loop() {
     bool got = ubx.poll(UBX_CLASS_NAV, UBX_NAV_PVT, &pvt, sizeof(pvt));
 
     if (attempt == 1) {
-      Serial.println("Waiting for fix...");
+      Serial.println(F("Waiting for fix..."));
     } else {
-      Serial.print("Waiting for fix... (attempt ");
+      Serial.print(F("Waiting for fix... (attempt "));
       Serial.print(attempt);
       if (got) {
-        Serial.print(", fixType=");
+        Serial.print(F(", fixType="));
         Serial.print(pvt.fixType);
-        Serial.print(", sats=");
+        Serial.print(F(", sats="));
         Serial.print(pvt.numSV);
-        Serial.println(")");
+        Serial.println(F(")"));
       } else {
-        Serial.println(", poll failed)");
+        Serial.println(F(", poll failed)"));
       }
     }
 
     if (got && pvt.fixType == 3 && (pvt.flags & 0x01)) {
       fix_acquired = true;
-      Serial.print("Fix acquired! fixType=");
+      Serial.print(F("Fix acquired! fixType="));
       Serial.print(pvt.fixType);
-      Serial.print(", sats=");
+      Serial.print(F(", sats="));
       Serial.println(pvt.numSV);
       runTests(pvt);
       tests_run = true;
@@ -266,7 +266,7 @@ void loop() {
     }
 
     if (millis() - fix_start_ms > FIX_TIMEOUT_MS) {
-      Serial.println("Timeout waiting for 3D fix after 120 seconds.");
+      Serial.println(F("Timeout waiting for 3D fix after 120 seconds."));
       tests_run = true;
     }
 
@@ -276,14 +276,14 @@ void loop() {
 
   if (!printed_continuous_header) {
     Serial.println();
-    Serial.println("Continuous output:");
+    Serial.println(F("Continuous output:"));
     printed_continuous_header = true;
   }
 
   if (ubx.poll(UBX_CLASS_NAV, UBX_NAV_PVT, &pvt, sizeof(pvt))) {
     printPVT(pvt);
   } else {
-    Serial.println("NAV-PVT poll failed (timeout)");
+    Serial.println(F("NAV-PVT poll failed (timeout)"));
   }
 
   delay(2000);
