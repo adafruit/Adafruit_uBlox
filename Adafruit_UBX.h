@@ -170,6 +170,67 @@ class Adafruit_UBX {
   uint8_t getLastINFType();
   uint16_t getLastINFString(char* buffer, uint16_t maxLen);
 
+  // Phase 6: Advanced feature messages
+  // NAV-ODO: Odometer
+  bool pollNavOdo(UBX_NAV_ODO_t* odo, uint16_t timeout_ms = 1000);
+  bool resetOdometer();
+
+  // NAV-HPPOSLLH: High precision position (LLH)
+  bool pollNavHpposllh(UBX_NAV_HPPOSLLH_t* hppos, uint16_t timeout_ms = 1000);
+  bool getHighPrecisionPosition(UBX_NAV_HPPOSLLH_t* hppos);
+
+  // NAV-HPPOSECEF: High precision position (ECEF)
+  bool pollNavHpposecef(UBX_NAV_HPPOSECEF_t* hppos, uint16_t timeout_ms = 1000);
+
+  // NAV-RELPOSNED: Relative position NED (RTK)
+  bool pollNavRelposned(UBX_NAV_RELPOSNED_t* relpos,
+                        uint16_t timeout_ms = 1000);
+
+  // NAV-SVIN: Survey-in status
+  bool pollNavSvin(UBX_NAV_SVIN_t* svin, uint16_t timeout_ms = 1000);
+
+  // NAV-GEOFENCE: Geofence status
+  uint8_t pollNavGeofence(UBX_NAV_GEOFENCE_header_t* header,
+                          UBX_NAV_GEOFENCE_fence_t* fences, uint8_t maxFences,
+                          uint16_t timeout_ms = 1000);
+
+  // NAV-TIMELS: Leap second information
+  bool pollNavTimels(UBX_NAV_TIMELS_t* timels, uint16_t timeout_ms = 1000);
+
+  // CFG-TMODE3: Time mode 3 (RTK base station)
+  bool pollCfgTmode3(UBX_CFG_TMODE3_t* tmode3, uint16_t timeout_ms = 1000);
+  bool setCfgTmode3(UBX_CFG_TMODE3_t* tmode3);
+  bool startSurveyIn(uint32_t minDurSec, uint32_t accLimitMm);
+
+  // CFG-GEOFENCE: Geofence configuration
+  uint8_t pollCfgGeofence(UBX_CFG_GEOFENCE_header_t* header,
+                          UBX_CFG_GEOFENCE_fence_t* fences, uint8_t maxFences,
+                          uint16_t timeout_ms = 1000);
+  bool setCfgGeofence(UBX_CFG_GEOFENCE_header_t* header,
+                      UBX_CFG_GEOFENCE_fence_t* fences, uint8_t numFences);
+  bool setGeofence(int32_t lat, int32_t lon, uint32_t radiusCm,
+                   uint8_t confLvl = 2);
+  bool clearGeofence();
+
+  // CFG-TP5: Time pulse configuration
+  bool pollCfgTp5(UBX_CFG_TP5_t* tp5, uint8_t tpIdx = 0,
+                  uint16_t timeout_ms = 1000);
+  bool setCfgTp5(UBX_CFG_TP5_t* tp5);
+
+  // UPD-SOS: Save on shutdown
+  bool backupToFlash();
+  bool clearBackup();
+  uint8_t pollUpdSos(UBX_UPD_SOS_response_t* response,
+                     uint16_t timeout_ms = 1000);
+
+  // LOG messages
+  bool createLog(uint8_t logSize = 0, bool circular = false,
+                 uint32_t userSize = 0);
+  bool eraseLog();
+  bool pollLogInfo(UBX_LOG_INFO_t* info, uint16_t timeout_ms = 1000);
+  bool getLogInfo(UBX_LOG_INFO_t* info);
+  bool sendLogRetrieve(uint32_t startIndex, uint32_t count);
+
   void setMessageCallback(UBXMessageCallback callback); // Set callback function
   UBXMessageCallback onUBXMessage; ///< Callback for message received
 

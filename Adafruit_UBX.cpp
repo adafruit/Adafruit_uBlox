@@ -1314,3 +1314,474 @@ uint16_t Adafruit_UBX::getLastINFString(char* buffer, uint16_t maxLen) {
 }
 
 // =====================================================================
+// Phase 6: Advanced Feature Message Implementations
+// =====================================================================
+
+/*!
+ *  @brief  Poll NAV-ODO message (odometer solution)
+ *  @param  odo Pointer to struct to fill
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return True if response received
+ */
+bool Adafruit_UBX::pollNavOdo(UBX_NAV_ODO_t* odo, uint16_t timeout_ms) {
+  return poll(UBX_CLASS_NAV, UBX_NAV_ODO, odo, sizeof(UBX_NAV_ODO_t),
+              timeout_ms);
+}
+
+/*!
+ *  @brief  Reset the odometer
+ *  @return True if acknowledged
+ *  @note   This resets the 'distance' field in NAV-ODO; totalDistance is only
+ *          reset by a cold start.
+ */
+bool Adafruit_UBX::resetOdometer() {
+  // NAV-RESETODO has no payload
+  UBXSendStatus status =
+      sendMessageWithAck(UBX_CLASS_NAV, UBX_NAV_RESETODO, NULL, 0);
+  return (status == UBX_SEND_SUCCESS);
+}
+
+/*!
+ *  @brief  Poll NAV-HPPOSLLH message (high precision geodetic position)
+ *  @param  hppos Pointer to struct to fill
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return True if response received
+ */
+bool Adafruit_UBX::pollNavHpposllh(UBX_NAV_HPPOSLLH_t* hppos,
+                                   uint16_t timeout_ms) {
+  return poll(UBX_CLASS_NAV, UBX_NAV_HPPOSLLH, hppos,
+              sizeof(UBX_NAV_HPPOSLLH_t), timeout_ms);
+}
+
+/*!
+ *  @brief  Get high precision position (convenience wrapper)
+ *  @param  hppos Pointer to struct to fill
+ *  @return True if response received
+ */
+bool Adafruit_UBX::getHighPrecisionPosition(UBX_NAV_HPPOSLLH_t* hppos) {
+  return pollNavHpposllh(hppos, 1000);
+}
+
+/*!
+ *  @brief  Poll NAV-HPPOSECEF message (high precision ECEF position)
+ *  @param  hppos Pointer to struct to fill
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return True if response received
+ */
+bool Adafruit_UBX::pollNavHpposecef(UBX_NAV_HPPOSECEF_t* hppos,
+                                    uint16_t timeout_ms) {
+  return poll(UBX_CLASS_NAV, UBX_NAV_HPPOSECEF, hppos,
+              sizeof(UBX_NAV_HPPOSECEF_t), timeout_ms);
+}
+
+/*!
+ *  @brief  Poll NAV-RELPOSNED message (relative position NED for RTK)
+ *  @param  relpos Pointer to struct to fill
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return True if response received
+ *  @note   Only available on High Precision GNSS products
+ */
+bool Adafruit_UBX::pollNavRelposned(UBX_NAV_RELPOSNED_t* relpos,
+                                    uint16_t timeout_ms) {
+  return poll(UBX_CLASS_NAV, UBX_NAV_RELPOSNED, relpos,
+              sizeof(UBX_NAV_RELPOSNED_t), timeout_ms);
+}
+
+/*!
+ *  @brief  Poll NAV-SVIN message (survey-in status)
+ *  @param  svin Pointer to struct to fill
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return True if response received
+ *  @note   Only available on High Precision GNSS products
+ */
+bool Adafruit_UBX::pollNavSvin(UBX_NAV_SVIN_t* svin, uint16_t timeout_ms) {
+  return poll(UBX_CLASS_NAV, UBX_NAV_SVIN, svin, sizeof(UBX_NAV_SVIN_t),
+              timeout_ms);
+}
+
+/*!
+ *  @brief  Poll NAV-GEOFENCE message (geofencing status)
+ *  @param  header Pointer to header struct to fill
+ *  @param  fences Array of fence status structs to fill
+ *  @param  maxFences Maximum number of fences the array can hold
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return Number of fences read, or 0 on failure
+ */
+uint8_t Adafruit_UBX::pollNavGeofence(UBX_NAV_GEOFENCE_header_t* header,
+                                      UBX_NAV_GEOFENCE_fence_t* fences,
+                                      uint8_t maxFences, uint16_t timeout_ms) {
+  if (!sendMessage(UBX_CLASS_NAV, UBX_NAV_GEOFENCE, NULL, 0)) {
+    return 0;
+  }
+
+  uint32_t startTime = millis();
+  while (millis() - startTime < timeout_ms) {
+    if (checkMessages()) {
+      if (_lastMsgClass == UBX_CLASS_NAV && _lastMsgId == UBX_NAV_GEOFENCE) {
+        uint16_t usablePayload = min(_lastPayloadLength, MAX_PAYLOAD_SIZE);
+        if (usablePayload < sizeof(UBX_NAV_GEOFENCE_header_t)) {
+          return 0;
+        }
+
+        memcpy(header, _buffer + 6, sizeof(UBX_NAV_GEOFENCE_header_t));
+
+        uint16_t fenceBytes = usablePayload - sizeof(UBX_NAV_GEOFENCE_header_t);
+        uint8_t fencesInPayload = fenceBytes / sizeof(UBX_NAV_GEOFENCE_fence_t);
+        uint8_t fencesToRead = min(fencesInPayload, maxFences);
+        fencesToRead = min(fencesToRead, header->numFences);
+
+        for (uint8_t i = 0; i < fencesToRead; i++) {
+          memcpy(&fences[i],
+                 _buffer + 6 + sizeof(UBX_NAV_GEOFENCE_header_t) +
+                     (i * sizeof(UBX_NAV_GEOFENCE_fence_t)),
+                 sizeof(UBX_NAV_GEOFENCE_fence_t));
+        }
+        return fencesToRead;
+      }
+    }
+    delay(1);
+  }
+  return 0;
+}
+
+/*!
+ *  @brief  Poll NAV-TIMELS message (leap second information)
+ *  @param  timels Pointer to struct to fill
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return True if response received
+ */
+bool Adafruit_UBX::pollNavTimels(UBX_NAV_TIMELS_t* timels,
+                                 uint16_t timeout_ms) {
+  return poll(UBX_CLASS_NAV, UBX_NAV_TIMELS, timels, sizeof(UBX_NAV_TIMELS_t),
+              timeout_ms);
+}
+
+/*!
+ *  @brief  Poll CFG-TMODE3 message (time mode 3 / RTK base config)
+ *  @param  tmode3 Pointer to struct to fill
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return True if response received
+ *  @note   Only available on High Precision GNSS products
+ */
+bool Adafruit_UBX::pollCfgTmode3(UBX_CFG_TMODE3_t* tmode3,
+                                 uint16_t timeout_ms) {
+  return poll(UBX_CLASS_CFG, UBX_CFG_TMODE3, tmode3, sizeof(UBX_CFG_TMODE3_t),
+              timeout_ms);
+}
+
+/*!
+ *  @brief  Set CFG-TMODE3 message (time mode 3 / RTK base config)
+ *  @param  tmode3 Pointer to struct with settings to apply
+ *  @return True if acknowledged
+ */
+bool Adafruit_UBX::setCfgTmode3(UBX_CFG_TMODE3_t* tmode3) {
+  UBXSendStatus status =
+      sendMessageWithAck(UBX_CLASS_CFG, UBX_CFG_TMODE3, (uint8_t*)tmode3,
+                         sizeof(UBX_CFG_TMODE3_t));
+  return (status == UBX_SEND_SUCCESS);
+}
+
+/*!
+ *  @brief  Start survey-in mode for RTK base station
+ *  @param  minDurSec Minimum survey-in duration in seconds
+ *  @param  accLimitMm Required accuracy in 0.1 mm (e.g. 100000 = 10m)
+ *  @return True if acknowledged
+ *  @note   Only available on High Precision GNSS products
+ */
+bool Adafruit_UBX::startSurveyIn(uint32_t minDurSec, uint32_t accLimitMm) {
+  UBX_CFG_TMODE3_t tmode3;
+  memset(&tmode3, 0, sizeof(tmode3));
+  tmode3.version = 0;
+  tmode3.flags = UBX_TMODE3_MODE_SURVEY_IN;
+  tmode3.svinMinDur = minDurSec;
+  tmode3.svinAccLimit = accLimitMm;
+  return setCfgTmode3(&tmode3);
+}
+
+/*!
+ *  @brief  Poll CFG-GEOFENCE message (geofence configuration)
+ *  @param  header Pointer to header struct to fill
+ *  @param  fences Array of fence definition structs to fill
+ *  @param  maxFences Maximum number of fences the array can hold
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return Number of fences read, or 0 on failure
+ */
+uint8_t Adafruit_UBX::pollCfgGeofence(UBX_CFG_GEOFENCE_header_t* header,
+                                      UBX_CFG_GEOFENCE_fence_t* fences,
+                                      uint8_t maxFences, uint16_t timeout_ms) {
+  if (!sendMessage(UBX_CLASS_CFG, UBX_CFG_GEOFENCE, NULL, 0)) {
+    return 0;
+  }
+
+  uint32_t startTime = millis();
+  while (millis() - startTime < timeout_ms) {
+    if (checkMessages()) {
+      if (_lastMsgClass == UBX_CLASS_CFG && _lastMsgId == UBX_CFG_GEOFENCE) {
+        uint16_t usablePayload = min(_lastPayloadLength, MAX_PAYLOAD_SIZE);
+        if (usablePayload < sizeof(UBX_CFG_GEOFENCE_header_t)) {
+          return 0;
+        }
+
+        memcpy(header, _buffer + 6, sizeof(UBX_CFG_GEOFENCE_header_t));
+
+        uint16_t fenceBytes = usablePayload - sizeof(UBX_CFG_GEOFENCE_header_t);
+        uint8_t fencesInPayload = fenceBytes / sizeof(UBX_CFG_GEOFENCE_fence_t);
+        uint8_t fencesToRead = min(fencesInPayload, maxFences);
+        fencesToRead = min(fencesToRead, header->numFences);
+
+        for (uint8_t i = 0; i < fencesToRead; i++) {
+          memcpy(&fences[i],
+                 _buffer + 6 + sizeof(UBX_CFG_GEOFENCE_header_t) +
+                     (i * sizeof(UBX_CFG_GEOFENCE_fence_t)),
+                 sizeof(UBX_CFG_GEOFENCE_fence_t));
+        }
+        return fencesToRead;
+      }
+    }
+    delay(1);
+  }
+  return 0;
+}
+
+/*!
+ *  @brief  Set CFG-GEOFENCE message (geofence configuration)
+ *  @param  header Pointer to header struct
+ *  @param  fences Array of fence definition structs
+ *  @param  numFences Number of fences to set (max 4)
+ *  @return True if acknowledged
+ */
+bool Adafruit_UBX::setCfgGeofence(UBX_CFG_GEOFENCE_header_t* header,
+                                  UBX_CFG_GEOFENCE_fence_t* fences,
+                                  uint8_t numFences) {
+  if (numFences > 4)
+    numFences = 4;
+
+  uint16_t totalLen = sizeof(UBX_CFG_GEOFENCE_header_t) +
+                      (numFences * sizeof(UBX_CFG_GEOFENCE_fence_t));
+  uint8_t payload[totalLen];
+
+  header->numFences = numFences;
+  memcpy(payload, header, sizeof(UBX_CFG_GEOFENCE_header_t));
+  memcpy(payload + sizeof(UBX_CFG_GEOFENCE_header_t), fences,
+         numFences * sizeof(UBX_CFG_GEOFENCE_fence_t));
+
+  UBXSendStatus status =
+      sendMessageWithAck(UBX_CLASS_CFG, UBX_CFG_GEOFENCE, payload, totalLen);
+  return (status == UBX_SEND_SUCCESS);
+}
+
+/*!
+ *  @brief  Set a single circular geofence (convenience method)
+ *  @param  lat Latitude of center (deg * 1e-7)
+ *  @param  lon Longitude of center (deg * 1e-7)
+ *  @param  radiusCm Radius in centimeters
+ *  @param  confLvl Confidence level: 0=none, 1=68%, 2=95%, 3=99.7%
+ *  @return True if acknowledged
+ */
+bool Adafruit_UBX::setGeofence(int32_t lat, int32_t lon, uint32_t radiusCm,
+                               uint8_t confLvl) {
+  UBX_CFG_GEOFENCE_header_t header;
+  memset(&header, 0, sizeof(header));
+  header.version = 0;
+  header.numFences = 1;
+  header.confLvl = confLvl;
+  header.pioEnabled = 0;
+  header.pinPolarity = 0;
+  header.pin = 0;
+
+  UBX_CFG_GEOFENCE_fence_t fence;
+  fence.lat = lat;
+  fence.lon = lon;
+  fence.radius = radiusCm;
+
+  return setCfgGeofence(&header, &fence, 1);
+}
+
+/*!
+ *  @brief  Clear all geofences
+ *  @return True if acknowledged
+ */
+bool Adafruit_UBX::clearGeofence() {
+  UBX_CFG_GEOFENCE_header_t header;
+  memset(&header, 0, sizeof(header));
+  header.version = 0;
+  header.numFences = 0;
+
+  return setCfgGeofence(&header, NULL, 0);
+}
+
+/*!
+ *  @brief  Poll CFG-TP5 message (time pulse configuration)
+ *  @param  tp5 Pointer to struct to fill
+ *  @param  tpIdx Time pulse index (0 or 1)
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return True if response received
+ */
+bool Adafruit_UBX::pollCfgTp5(UBX_CFG_TP5_t* tp5, uint8_t tpIdx,
+                              uint16_t timeout_ms) {
+  // Poll with tpIdx as 1-byte payload
+  if (!sendMessage(UBX_CLASS_CFG, UBX_CFG_TP5, &tpIdx, 1)) {
+    return false;
+  }
+
+  uint32_t startTime = millis();
+  while (millis() - startTime < timeout_ms) {
+    if (checkMessages()) {
+      if (_lastMsgClass == UBX_CLASS_CFG && _lastMsgId == UBX_CFG_TP5) {
+        uint16_t usablePayload = min(_lastPayloadLength, MAX_PAYLOAD_SIZE);
+        uint16_t copyLen = min((uint16_t)sizeof(UBX_CFG_TP5_t), usablePayload);
+        memcpy(tp5, _buffer + 6, copyLen);
+        return true;
+      }
+    }
+    delay(1);
+  }
+  return false;
+}
+
+/*!
+ *  @brief  Set CFG-TP5 message (time pulse configuration)
+ *  @param  tp5 Pointer to struct with settings to apply
+ *  @return True if acknowledged
+ */
+bool Adafruit_UBX::setCfgTp5(UBX_CFG_TP5_t* tp5) {
+  UBXSendStatus status = sendMessageWithAck(
+      UBX_CLASS_CFG, UBX_CFG_TP5, (uint8_t*)tp5, sizeof(UBX_CFG_TP5_t));
+  return (status == UBX_SEND_SUCCESS);
+}
+
+/*!
+ *  @brief  Backup receiver state to flash (save on shutdown)
+ *  @return True if command was sent successfully
+ *  @note   This creates a backup of ephemeris, almanac, and receiver state.
+ *          The backup is restored automatically on power-up.
+ */
+bool Adafruit_UBX::backupToFlash() {
+  UBX_UPD_SOS_cmd_t cmd;
+  cmd.cmd = UBX_UPD_SOS_CMD_CREATE;
+  memset(cmd.reserved1, 0, sizeof(cmd.reserved1));
+
+  UBXSendStatus status = sendMessageWithAck(UBX_CLASS_UPD, UBX_UPD_SOS,
+                                            (uint8_t*)&cmd, sizeof(cmd));
+  return (status == UBX_SEND_SUCCESS);
+}
+
+/*!
+ *  @brief  Clear backup from flash
+ *  @return True if command was sent successfully
+ */
+bool Adafruit_UBX::clearBackup() {
+  UBX_UPD_SOS_cmd_t cmd;
+  cmd.cmd = UBX_UPD_SOS_CMD_CLEAR;
+  memset(cmd.reserved1, 0, sizeof(cmd.reserved1));
+
+  UBXSendStatus status = sendMessageWithAck(UBX_CLASS_UPD, UBX_UPD_SOS,
+                                            (uint8_t*)&cmd, sizeof(cmd));
+  return (status == UBX_SEND_SUCCESS);
+}
+
+/*!
+ *  @brief  Poll UPD-SOS to get backup status
+ *  @param  response Pointer to struct to fill with response
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return Response code (0=unknown, 1=failed, 2=restored, 3=none), or 0xFF on
+ * error
+ */
+uint8_t Adafruit_UBX::pollUpdSos(UBX_UPD_SOS_response_t* response,
+                                 uint16_t timeout_ms) {
+  if (!sendMessage(UBX_CLASS_UPD, UBX_UPD_SOS, NULL, 0)) {
+    return 0xFF;
+  }
+
+  uint32_t startTime = millis();
+  while (millis() - startTime < timeout_ms) {
+    if (checkMessages()) {
+      if (_lastMsgClass == UBX_CLASS_UPD && _lastMsgId == UBX_UPD_SOS) {
+        if (_lastPayloadLength >= sizeof(UBX_UPD_SOS_response_t)) {
+          memcpy(response, _buffer + 6, sizeof(UBX_UPD_SOS_response_t));
+          return response->response;
+        }
+      }
+    }
+    delay(1);
+  }
+  return 0xFF;
+}
+
+/*!
+ *  @brief  Create a log file
+ *  @param  logSize Size option: 0=max safe, 1=minimum, 2=user-defined
+ *  @param  circular True for circular logging (overwrite oldest entries)
+ *  @param  userSize User-defined max size in bytes (only if logSize=2)
+ *  @return True if acknowledged
+ */
+bool Adafruit_UBX::createLog(uint8_t logSize, bool circular,
+                             uint32_t userSize) {
+  UBX_LOG_CREATE_t create;
+  create.version = 0;
+  create.logCfg = circular ? UBX_LOG_CREATE_CIRCULAR : 0;
+  create.reserved1 = 0;
+  create.logSize = logSize;
+  create.userDefinedSize = userSize;
+
+  UBXSendStatus status = sendMessageWithAck(UBX_CLASS_LOG, UBX_LOG_CREATE,
+                                            (uint8_t*)&create, sizeof(create));
+  return (status == UBX_SEND_SUCCESS);
+}
+
+/*!
+ *  @brief  Erase the log file
+ *  @return True if acknowledged
+ *  @note   This also deactivates logging
+ */
+bool Adafruit_UBX::eraseLog() {
+  // LOG-ERASE has no payload
+  UBXSendStatus status =
+      sendMessageWithAck(UBX_CLASS_LOG, UBX_LOG_ERASE, NULL, 0);
+  return (status == UBX_SEND_SUCCESS);
+}
+
+/*!
+ *  @brief  Poll LOG-INFO message (log information)
+ *  @param  info Pointer to struct to fill
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return True if response received
+ */
+bool Adafruit_UBX::pollLogInfo(UBX_LOG_INFO_t* info, uint16_t timeout_ms) {
+  return poll(UBX_CLASS_LOG, UBX_LOG_INFO, info, sizeof(UBX_LOG_INFO_t),
+              timeout_ms);
+}
+
+/*!
+ *  @brief  Get log information (convenience wrapper)
+ *  @param  info Pointer to struct to fill
+ *  @return True if response received
+ */
+bool Adafruit_UBX::getLogInfo(UBX_LOG_INFO_t* info) {
+  return pollLogInfo(info, 1000);
+}
+
+/*!
+ *  @brief  Send LOG-RETRIEVE command to start log retrieval
+ *  @param  startIndex Index of first entry to retrieve (0-based)
+ *  @param  count Number of entries to retrieve (max 256)
+ *  @return True if command was acknowledged
+ *  @note   After calling this, monitor for LOG-RETRIEVEPOS, LOG-RETRIEVESTRING,
+ *          and LOG-RETRIEVEPOSEXTRA messages using checkMessages().
+ */
+bool Adafruit_UBX::sendLogRetrieve(uint32_t startIndex, uint32_t count) {
+  if (count > 256)
+    count = 256;
+
+  UBX_LOG_RETRIEVE_t retrieve;
+  retrieve.startNumber = startIndex;
+  retrieve.entryCount = count;
+  retrieve.version = 0;
+  memset(retrieve.reserved1, 0, sizeof(retrieve.reserved1));
+
+  UBXSendStatus status = sendMessageWithAck(
+      UBX_CLASS_LOG, UBX_LOG_RETRIEVE, (uint8_t*)&retrieve, sizeof(retrieve));
+  return (status == UBX_SEND_SUCCESS);
+}
+
+// =====================================================================

@@ -38,21 +38,24 @@ typedef enum {
 
 /** UBX CFG Message IDs. */
 typedef enum {
-  UBX_CFG_PRT = 0x00,   // Port Configuration
-  UBX_CFG_MSG = 0x01,   // Message Configuration
-  UBX_CFG_INF = 0x02,   // Information Message Configuration
-  UBX_CFG_RST = 0x04,   // Reset Receiver
-  UBX_CFG_RATE = 0x08,  // Navigation/Measurement Rate Settings
-  UBX_CFG_CFG = 0x09,   // Clear, Save, and Load Configurations
-  UBX_CFG_RXM = 0x11,   // Receiver Manager Configuration
-  UBX_CFG_ANT = 0x13,   // Antenna Control Settings
-  UBX_CFG_SBAS = 0x16,  // SBAS Configuration
-  UBX_CFG_NMEA = 0x17,  // NMEA Protocol Configuration
-  UBX_CFG_NAVX5 = 0x23, // Navigation Engine Expert Settings
-  UBX_CFG_NAV5 = 0x24,  // Navigation Engine Settings
-  UBX_CFG_PM2 = 0x3B,   // Extended Power Management Configuration
-  UBX_CFG_GNSS = 0x3E,  // GNSS Configuration
-  UBX_CFG_PMS = 0x86    // Power Mode Setup
+  UBX_CFG_PRT = 0x00,      // Port Configuration
+  UBX_CFG_MSG = 0x01,      // Message Configuration
+  UBX_CFG_INF = 0x02,      // Information Message Configuration
+  UBX_CFG_RST = 0x04,      // Reset Receiver
+  UBX_CFG_RATE = 0x08,     // Navigation/Measurement Rate Settings
+  UBX_CFG_CFG = 0x09,      // Clear, Save, and Load Configurations
+  UBX_CFG_RXM = 0x11,      // Receiver Manager Configuration
+  UBX_CFG_ANT = 0x13,      // Antenna Control Settings
+  UBX_CFG_SBAS = 0x16,     // SBAS Configuration
+  UBX_CFG_NMEA = 0x17,     // NMEA Protocol Configuration
+  UBX_CFG_NAVX5 = 0x23,    // Navigation Engine Expert Settings
+  UBX_CFG_NAV5 = 0x24,     // Navigation Engine Settings
+  UBX_CFG_TP5 = 0x31,      // Time Pulse Configuration
+  UBX_CFG_PM2 = 0x3B,      // Extended Power Management Configuration
+  UBX_CFG_GNSS = 0x3E,     // GNSS Configuration
+  UBX_CFG_GEOFENCE = 0x69, // Geofencing Configuration
+  UBX_CFG_TMODE3 = 0x71,   // Time Mode 3 (RTK Base)
+  UBX_CFG_PMS = 0x86       // Power Mode Setup
 } UBXCfgMessageId;
 
 /** UBX NAV Message IDs. */
@@ -71,7 +74,11 @@ typedef enum {
   UBX_NAV_TIMEGPS = 0x20,   // GPS Time
   UBX_NAV_TIMEUTC = 0x21,   // UTC Time
   UBX_NAV_CLOCK = 0x22,     // Clock Solution
+  UBX_NAV_TIMELS = 0x26,    // Leap Second Event
   UBX_NAV_SAT = 0x35,       // Satellite Information
+  UBX_NAV_GEOFENCE = 0x39,  // Geofencing Status
+  UBX_NAV_SVIN = 0x3B,      // Survey-in Data
+  UBX_NAV_RELPOSNED = 0x3C, // Relative Position NED
   UBX_NAV_EOE = 0x61        // End of Epoch
 } UBXNavMessageId;
 
@@ -924,5 +931,473 @@ typedef enum {
   UBX_INF_TEST = 0x03,    // Test message
   UBX_INF_DEBUG = 0x04    // Debug message
 } UBXInfMessageId;
+
+// =====================================================================
+// Phase 6: Advanced Feature Messages
+// =====================================================================
+
+/** UBX-NAV-ODO (0x01 0x09) - Odometer Solution.
+ *  20 bytes. Distance traveled since reset.
+ */
+typedef struct __attribute__((packed)) {
+  uint8_t version;        ///< Message version (0x00)
+  uint8_t reserved1[3];   ///< Reserved
+  uint32_t iTOW;          ///< GPS time of week (ms)
+  uint32_t distance;      ///< Ground distance since last reset (m)
+  uint32_t totalDistance; ///< Total cumulative ground distance (m)
+  uint32_t distanceStd;   ///< Ground distance accuracy 1-sigma (m)
+} UBX_NAV_ODO_t;
+
+static_assert(sizeof(UBX_NAV_ODO_t) == 20, "UBX_NAV_ODO_t must be 20 bytes");
+
+/** UBX-NAV-HPPOSLLH (0x01 0x14) - High Precision Geodetic Position.
+ *  36 bytes. High precision lat/lon/height with mm residuals.
+ */
+typedef struct __attribute__((packed)) {
+  uint8_t version;      ///< Message version (0x00)
+  uint8_t reserved1[2]; ///< Reserved
+  uint8_t flags;        ///< Flags (bit0=invalidLlh)
+  uint32_t iTOW;        ///< GPS time of week (ms)
+  int32_t lon;          ///< Longitude (deg, scale 1e-7)
+  int32_t lat;          ///< Latitude (deg, scale 1e-7)
+  int32_t height;       ///< Height above ellipsoid (mm)
+  int32_t hMSL;         ///< Height above mean sea level (mm)
+  int8_t lonHp; ///< High precision longitude (deg, scale 1e-9). Range -99..+99
+  int8_t latHp; ///< High precision latitude (deg, scale 1e-9). Range -99..+99
+  int8_t heightHp; ///< High precision height (mm, scale 0.1). Range -9..+9
+  int8_t hMSLHp;   ///< High precision hMSL (mm, scale 0.1). Range -9..+9
+  uint32_t hAcc;   ///< Horizontal accuracy estimate (mm, scale 0.1)
+  uint32_t vAcc;   ///< Vertical accuracy estimate (mm, scale 0.1)
+} UBX_NAV_HPPOSLLH_t;
+
+static_assert(sizeof(UBX_NAV_HPPOSLLH_t) == 36,
+              "UBX_NAV_HPPOSLLH_t must be 36 bytes");
+
+// NAV-HPPOSLLH flags
+#define UBX_NAV_HPPOSLLH_FLAG_INVALID 0x01 ///< LLH data invalid
+
+/** UBX-NAV-HPPOSECEF (0x01 0x13) - High Precision ECEF Position.
+ *  28 bytes. High precision ECEF coordinates with mm residuals.
+ */
+typedef struct __attribute__((packed)) {
+  uint8_t version;      ///< Message version (0x00)
+  uint8_t reserved1[3]; ///< Reserved
+  uint32_t iTOW;        ///< GPS time of week (ms)
+  int32_t ecefX;        ///< ECEF X coordinate (cm)
+  int32_t ecefY;        ///< ECEF Y coordinate (cm)
+  int32_t ecefZ;        ///< ECEF Z coordinate (cm)
+  int8_t ecefXHp;       ///< High precision X (mm, scale 0.1). Range -99..+99
+  int8_t ecefYHp;       ///< High precision Y (mm, scale 0.1). Range -99..+99
+  int8_t ecefZHp;       ///< High precision Z (mm, scale 0.1). Range -99..+99
+  uint8_t flags;        ///< Flags (bit0=invalidEcef)
+  uint32_t pAcc;        ///< Position accuracy estimate (mm, scale 0.1)
+} UBX_NAV_HPPOSECEF_t;
+
+static_assert(sizeof(UBX_NAV_HPPOSECEF_t) == 28,
+              "UBX_NAV_HPPOSECEF_t must be 28 bytes");
+
+// NAV-HPPOSECEF flags
+#define UBX_NAV_HPPOSECEF_FLAG_INVALID 0x01 ///< ECEF data invalid
+
+/** UBX-NAV-RELPOSNED (0x01 0x3C) - Relative Position NED (v0).
+ *  40 bytes. Relative position from base to rover for RTK.
+ */
+typedef struct __attribute__((packed)) {
+  uint8_t version;       ///< Message version (0x00)
+  uint8_t reserved1;     ///< Reserved
+  uint16_t refStationId; ///< Reference station ID (0-4095)
+  uint32_t iTOW;         ///< GPS time of week (ms)
+  int32_t relPosN;       ///< North component (cm)
+  int32_t relPosE;       ///< East component (cm)
+  int32_t relPosD;       ///< Down component (cm)
+  int8_t relPosHPN;      ///< HP North (mm, scale 0.1). Range -99..+99
+  int8_t relPosHPE;      ///< HP East (mm, scale 0.1). Range -99..+99
+  int8_t relPosHPD;      ///< HP Down (mm, scale 0.1). Range -99..+99
+  uint8_t reserved2;     ///< Reserved
+  uint32_t accN;         ///< North accuracy (mm, scale 0.1)
+  uint32_t accE;         ///< East accuracy (mm, scale 0.1)
+  uint32_t accD;         ///< Down accuracy (mm, scale 0.1)
+  uint32_t flags;        ///< Flags (see defines below)
+} UBX_NAV_RELPOSNED_t;
+
+static_assert(sizeof(UBX_NAV_RELPOSNED_t) == 40,
+              "UBX_NAV_RELPOSNED_t must be 40 bytes");
+
+// NAV-RELPOSNED flags
+#define UBX_NAV_RELPOSNED_FLAG_GNSS_FIX_OK 0x00000001 ///< Valid fix
+#define UBX_NAV_RELPOSNED_FLAG_DIFF_SOLN 0x00000002   ///< Diff corrections used
+#define UBX_NAV_RELPOSNED_FLAG_REL_POS_VALID 0x00000004  ///< Rel pos valid
+#define UBX_NAV_RELPOSNED_FLAG_CARR_SOLN_MASK 0x00000018 ///< Carrier solution
+#define UBX_NAV_RELPOSNED_FLAG_IS_MOVING 0x00000020    ///< Moving baseline mode
+#define UBX_NAV_RELPOSNED_FLAG_REF_POS_MISS 0x00000040 ///< Ref pos extrapolated
+#define UBX_NAV_RELPOSNED_FLAG_REF_OBS_MISS 0x00000080 ///< Ref obs extrapolated
+
+/** UBX-NAV-SVIN (0x01 0x3B) - Survey-in Data.
+ *  40 bytes. Survey-in status for RTK base.
+ */
+typedef struct __attribute__((packed)) {
+  uint8_t version;      ///< Message version (0x00)
+  uint8_t reserved1[3]; ///< Reserved
+  uint32_t iTOW;        ///< GPS time of week (ms)
+  uint32_t dur;         ///< Passed survey-in observation time (s)
+  int32_t meanX;        ///< Mean ECEF X coordinate (cm)
+  int32_t meanY;        ///< Mean ECEF Y coordinate (cm)
+  int32_t meanZ;        ///< Mean ECEF Z coordinate (cm)
+  int8_t meanXHP;       ///< HP mean X (0.1 mm). Range -99..+99
+  int8_t meanYHP;       ///< HP mean Y (0.1 mm). Range -99..+99
+  int8_t meanZHP;       ///< HP mean Z (0.1 mm). Range -99..+99
+  uint8_t reserved2;    ///< Reserved
+  uint32_t meanAcc;     ///< Mean position accuracy (0.1 mm)
+  uint32_t obs;         ///< Number of observations used
+  uint8_t valid;        ///< Survey-in valid flag
+  uint8_t active;       ///< Survey-in in progress flag
+  uint8_t reserved3[2]; ///< Reserved
+} UBX_NAV_SVIN_t;
+
+static_assert(sizeof(UBX_NAV_SVIN_t) == 40, "UBX_NAV_SVIN_t must be 40 bytes");
+
+/** UBX-NAV-GEOFENCE (0x01 0x39) - Geofencing Status header.
+ *  8 bytes fixed + 2 bytes per fence.
+ */
+typedef struct __attribute__((packed)) {
+  uint32_t iTOW;     ///< GPS time of week (ms)
+  uint8_t version;   ///< Message version (0x00)
+  uint8_t status;    ///< Geofencing status: 0=not available, 1=active
+  uint8_t numFences; ///< Number of geofences
+  uint8_t combState; ///< Combined state: 0=Unknown, 1=Inside, 2=Outside
+} UBX_NAV_GEOFENCE_header_t;
+
+static_assert(sizeof(UBX_NAV_GEOFENCE_header_t) == 8,
+              "UBX_NAV_GEOFENCE_header_t must be 8 bytes");
+
+/** UBX-NAV-GEOFENCE per-fence state. 2 bytes each. */
+typedef struct __attribute__((packed)) {
+  uint8_t state; ///< Geofence state: 0=Unknown, 1=Inside, 2=Outside
+  uint8_t id;    ///< Geofence ID (0 = not available)
+} UBX_NAV_GEOFENCE_fence_t;
+
+static_assert(sizeof(UBX_NAV_GEOFENCE_fence_t) == 2,
+              "UBX_NAV_GEOFENCE_fence_t must be 2 bytes");
+
+// NAV-GEOFENCE states
+#define UBX_GEOFENCE_STATE_UNKNOWN 0 ///< Unknown state
+#define UBX_GEOFENCE_STATE_INSIDE 1  ///< Inside geofence
+#define UBX_GEOFENCE_STATE_OUTSIDE 2 ///< Outside geofence
+
+/** UBX-NAV-TIMELS (0x01 0x26) - Leap Second Event Information.
+ *  24 bytes. Information about leap seconds.
+ */
+typedef struct __attribute__((packed)) {
+  uint32_t iTOW;          ///< GPS time of week (ms)
+  uint8_t version;        ///< Message version (0x00)
+  uint8_t reserved1[3];   ///< Reserved
+  uint8_t srcOfCurrLs;    ///< Source of current leap seconds
+  int8_t currLs;          ///< Current leap seconds (GPS-UTC) (s)
+  uint8_t srcOfLsChange;  ///< Source of leap second change info
+  int8_t lsChange;        ///< Upcoming leap second change (s)
+  int32_t timeToLsEvent;  ///< Seconds until next leap second event (s)
+  uint16_t dateOfLsGpsWn; ///< GPS week of leap second event
+  uint16_t dateOfLsGpsDn; ///< GPS day of leap second event (1-7)
+  uint8_t reserved2[3];   ///< Reserved
+  uint8_t valid;          ///< Validity flags
+} UBX_NAV_TIMELS_t;
+
+static_assert(sizeof(UBX_NAV_TIMELS_t) == 24,
+              "UBX_NAV_TIMELS_t must be 24 bytes");
+
+// NAV-TIMELS source values
+#define UBX_TIMELS_SRC_DEFAULT 0   ///< Default (fw or SBAS)
+#define UBX_TIMELS_SRC_GPS 1       ///< GPS
+#define UBX_TIMELS_SRC_SBAS 2      ///< SBAS
+#define UBX_TIMELS_SRC_BEIDOU 3    ///< BeiDou
+#define UBX_TIMELS_SRC_GALILEO 4   ///< Galileo
+#define UBX_TIMELS_SRC_GLONASS 5   ///< GLONASS
+#define UBX_TIMELS_SRC_UNKNOWN 255 ///< Unknown
+
+// NAV-TIMELS valid flags
+#define UBX_TIMELS_VALID_CURR_LS 0x01       ///< currLs valid
+#define UBX_TIMELS_VALID_TIME_TO_EVENT 0x02 ///< timeToLsEvent valid
+
+/** UBX-CFG-TMODE3 (0x06 0x71) - Time Mode 3 Configuration.
+ *  40 bytes. Configure RTK base station mode.
+ */
+typedef struct __attribute__((packed)) {
+  uint8_t version;       ///< Message version (0x00)
+  uint8_t reserved1;     ///< Reserved
+  uint16_t flags;        ///< Receiver mode flags (see defines)
+  int32_t ecefXOrLat;    ///< ECEF X or Latitude (cm or deg*1e-7)
+  int32_t ecefYOrLon;    ///< ECEF Y or Longitude (cm or deg*1e-7)
+  int32_t ecefZOrAlt;    ///< ECEF Z or Altitude (cm)
+  int8_t ecefXOrLatHP;   ///< HP ECEF X or Lat (0.1mm or deg*1e-9)
+  int8_t ecefYOrLonHP;   ///< HP ECEF Y or Lon (0.1mm or deg*1e-9)
+  int8_t ecefZOrAltHP;   ///< HP ECEF Z or Alt (0.1mm)
+  uint8_t reserved2;     ///< Reserved
+  uint32_t fixedPosAcc;  ///< Fixed position 3D accuracy (0.1mm)
+  uint32_t svinMinDur;   ///< Survey-in min duration (s)
+  uint32_t svinAccLimit; ///< Survey-in accuracy limit (0.1mm)
+  uint8_t reserved3[8];  ///< Reserved
+} UBX_CFG_TMODE3_t;
+
+static_assert(sizeof(UBX_CFG_TMODE3_t) == 40,
+              "UBX_CFG_TMODE3_t must be 40 bytes");
+
+// CFG-TMODE3 flags
+#define UBX_TMODE3_MODE_DISABLED 0x0000  ///< Disabled
+#define UBX_TMODE3_MODE_SURVEY_IN 0x0001 ///< Survey-in mode
+#define UBX_TMODE3_MODE_FIXED 0x0002     ///< Fixed mode
+#define UBX_TMODE3_FLAG_LLA 0x0100       ///< Position is LLA (not ECEF)
+
+/** UBX-CFG-GEOFENCE (0x06 0x69) - Geofencing Configuration header.
+ *  8 bytes fixed + 12 bytes per fence.
+ */
+typedef struct __attribute__((packed)) {
+  uint8_t version;     ///< Message version (0x00)
+  uint8_t numFences;   ///< Number of geofences (max 4)
+  uint8_t confLvl;     ///< Confidence level: 0=none, 1=68%, 2=95%, 3=99.7%
+  uint8_t reserved1;   ///< Reserved
+  uint8_t pioEnabled;  ///< Enable PIO output for fence state
+  uint8_t pinPolarity; ///< PIO polarity: 0=Low inside, 1=Low outside
+  uint8_t pin;         ///< PIO pin number
+  uint8_t reserved2;   ///< Reserved
+} UBX_CFG_GEOFENCE_header_t;
+
+static_assert(sizeof(UBX_CFG_GEOFENCE_header_t) == 8,
+              "UBX_CFG_GEOFENCE_header_t must be 8 bytes");
+
+/** UBX-CFG-GEOFENCE per-fence definition. 12 bytes each. */
+typedef struct __attribute__((packed)) {
+  int32_t lat;     ///< Latitude of center (deg * 1e-7)
+  int32_t lon;     ///< Longitude of center (deg * 1e-7)
+  uint32_t radius; ///< Radius of geofence (cm)
+} UBX_CFG_GEOFENCE_fence_t;
+
+static_assert(sizeof(UBX_CFG_GEOFENCE_fence_t) == 12,
+              "UBX_CFG_GEOFENCE_fence_t must be 12 bytes");
+
+/** UBX-CFG-TP5 (0x06 0x31) - Time Pulse Configuration.
+ *  32 bytes. Configure timepulse output.
+ */
+typedef struct __attribute__((packed)) {
+  uint8_t tpIdx;              ///< Timepulse index (0 or 1)
+  uint8_t version;            ///< Message version (0x01)
+  uint8_t reserved1[2];       ///< Reserved
+  int16_t antCableDelay;      ///< Antenna cable delay (ns)
+  int16_t rfGroupDelay;       ///< RF group delay (ns)
+  uint32_t freqPeriod;        ///< Frequency or period (Hz or us)
+  uint32_t freqPeriodLock;    ///< Freq/period when locked to GNSS
+  uint32_t pulseLenRatio;     ///< Pulse length or duty cycle (us or 2^-32)
+  uint32_t pulseLenRatioLock; ///< Pulse len/duty when locked
+  int32_t userConfigDelay;    ///< User-configurable delay (ns)
+  uint32_t flags;             ///< Configuration flags (see defines)
+} UBX_CFG_TP5_t;
+
+static_assert(sizeof(UBX_CFG_TP5_t) == 32, "UBX_CFG_TP5_t must be 32 bytes");
+
+// CFG-TP5 flags
+#define UBX_TP5_FLAG_ACTIVE 0x00000001           ///< Timepulse active
+#define UBX_TP5_FLAG_LOCK_GNSS_FREQ 0x00000002   ///< Lock to GNSS frequency
+#define UBX_TP5_FLAG_LOCKED_OTHER_SET 0x00000004 ///< Use locked params
+#define UBX_TP5_FLAG_IS_FREQ 0x00000008          ///< Interpret as frequency
+#define UBX_TP5_FLAG_IS_LENGTH 0x00000010        ///< Interpret as length
+#define UBX_TP5_FLAG_ALIGN_TO_TOW 0x00000020     ///< Align to top of second
+#define UBX_TP5_FLAG_POLARITY 0x00000040 ///< Rising edge at top of second
+#define UBX_TP5_FLAG_GRID_UTC_GNSS_MASK 0x00000780 ///< Time grid (bits 7-10)
+
+/** UBX-UPD-SOS (0x09 0x14) - Save on Shutdown command.
+ *  4 bytes send, 8 bytes response.
+ */
+typedef struct __attribute__((packed)) {
+  uint8_t cmd;          ///< Command: 0=create backup, 1=clear backup
+  uint8_t reserved1[3]; ///< Reserved
+} UBX_UPD_SOS_cmd_t;
+
+static_assert(sizeof(UBX_UPD_SOS_cmd_t) == 4,
+              "UBX_UPD_SOS_cmd_t must be 4 bytes");
+
+typedef struct __attribute__((packed)) {
+  uint8_t cmd;          ///< Command echo
+  uint8_t reserved1[3]; ///< Reserved
+  uint8_t response;     ///< Response: 0=unknown, 1=failed, 2=restored, 3=none
+  uint8_t reserved2[3]; ///< Reserved
+} UBX_UPD_SOS_response_t;
+
+static_assert(sizeof(UBX_UPD_SOS_response_t) == 8,
+              "UBX_UPD_SOS_response_t must be 8 bytes");
+
+// UPD-SOS commands
+#define UBX_UPD_SOS_CMD_CREATE 0 ///< Create backup in flash
+#define UBX_UPD_SOS_CMD_CLEAR 1  ///< Clear backup from flash
+
+// UPD-SOS response values
+#define UBX_UPD_SOS_RESP_UNKNOWN 0  ///< Unknown
+#define UBX_UPD_SOS_RESP_FAILED 1   ///< Backup failed
+#define UBX_UPD_SOS_RESP_RESTORED 2 ///< Backup restored
+#define UBX_UPD_SOS_RESP_NONE 3     ///< No backup
+
+/** UBX LOG Message IDs. */
+typedef enum {
+  UBX_LOG_ERASE = 0x03,          // Erase log
+  UBX_LOG_STRING = 0x04,         // Store string
+  UBX_LOG_CREATE = 0x07,         // Create log
+  UBX_LOG_INFO = 0x08,           // Log info
+  UBX_LOG_RETRIEVE = 0x09,       // Retrieve log
+  UBX_LOG_RETRIEVEPOS = 0x0B,    // Retrieve position
+  UBX_LOG_RETRIEVESTRING = 0x0D, // Retrieve string
+  UBX_LOG_FINDTIME = 0x0E        // Find time in log
+} UBXLogMessageId;
+
+/** UBX UPD Message IDs. */
+typedef enum {
+  UBX_UPD_SOS = 0x14 // Save on shutdown
+} UBXUpdMessageId;
+
+/** UBX-LOG-CREATE (0x21 0x07) - Create Log File.
+ *  8 bytes. Command to create logging file.
+ */
+typedef struct __attribute__((packed)) {
+  uint8_t version;          ///< Message version (0x00)
+  uint8_t logCfg;           ///< Config flags (bit0=circular)
+  uint8_t reserved1;        ///< Reserved
+  uint8_t logSize;          ///< Size: 0=max safe, 1=min, 2=user-defined
+  uint32_t userDefinedSize; ///< User-defined max size (bytes)
+} UBX_LOG_CREATE_t;
+
+static_assert(sizeof(UBX_LOG_CREATE_t) == 8,
+              "UBX_LOG_CREATE_t must be 8 bytes");
+
+// LOG-CREATE logCfg flags
+#define UBX_LOG_CREATE_CIRCULAR 0x01 ///< Circular log
+
+// LOG-CREATE logSize values
+#define UBX_LOG_SIZE_MAX_SAFE 0     ///< Maximum safe size
+#define UBX_LOG_SIZE_MINIMUM 1      ///< Minimum size
+#define UBX_LOG_SIZE_USER_DEFINED 2 ///< User-defined size
+
+/** UBX-LOG-INFO (0x21 0x08) - Log Information.
+ *  48 bytes. Information about current log.
+ */
+typedef struct __attribute__((packed)) {
+  uint8_t version;            ///< Message version (0x01)
+  uint8_t reserved1[3];       ///< Reserved
+  uint32_t filestoreCapacity; ///< Filestore capacity (bytes)
+  uint8_t reserved2[8];       ///< Reserved
+  uint32_t currentMaxLogSize; ///< Max log size allowed (bytes)
+  uint32_t currentLogSize;    ///< Current log size (bytes)
+  uint32_t entryCount;        ///< Number of entries in log
+  uint16_t oldestYear;        ///< Oldest entry year (0 if no entries)
+  uint8_t oldestMonth;        ///< Oldest entry month (1-12)
+  uint8_t oldestDay;          ///< Oldest entry day (1-31)
+  uint8_t oldestHour;         ///< Oldest entry hour (0-23)
+  uint8_t oldestMinute;       ///< Oldest entry minute (0-59)
+  uint8_t oldestSecond;       ///< Oldest entry second (0-60)
+  uint8_t reserved3;          ///< Reserved
+  uint16_t newestYear;        ///< Newest entry year (0 if no entries)
+  uint8_t newestMonth;        ///< Newest entry month (1-12)
+  uint8_t newestDay;          ///< Newest entry day (1-31)
+  uint8_t newestHour;         ///< Newest entry hour (0-23)
+  uint8_t newestMinute;       ///< Newest entry minute (0-59)
+  uint8_t newestSecond;       ///< Newest entry second (0-60)
+  uint8_t reserved4;          ///< Reserved
+  uint8_t status;             ///< Status flags (see defines)
+  uint8_t reserved5[3];       ///< Reserved
+} UBX_LOG_INFO_t;
+
+static_assert(sizeof(UBX_LOG_INFO_t) == 48, "UBX_LOG_INFO_t must be 48 bytes");
+
+// LOG-INFO status flags
+#define UBX_LOG_INFO_STATUS_RECORDING 0x01 ///< Recording enabled
+#define UBX_LOG_INFO_STATUS_INACTIVE 0x02  ///< Log inactive (no log present)
+#define UBX_LOG_INFO_STATUS_CIRCULAR 0x04  ///< Log is circular
+
+/** UBX-LOG-RETRIEVE (0x21 0x09) - Request Log Data.
+ *  12 bytes. Command to retrieve log entries.
+ */
+typedef struct __attribute__((packed)) {
+  uint32_t startNumber; ///< Index of first entry to retrieve
+  uint32_t entryCount;  ///< Number of entries to retrieve (max 256)
+  uint8_t version;      ///< Message version (0x00)
+  uint8_t reserved1[3]; ///< Reserved
+} UBX_LOG_RETRIEVE_t;
+
+static_assert(sizeof(UBX_LOG_RETRIEVE_t) == 12,
+              "UBX_LOG_RETRIEVE_t must be 12 bytes");
+
+/** UBX-LOG-RETRIEVEPOS (0x21 0x0B) - Position Fix Log Entry.
+ *  40 bytes. Output message for log position entries.
+ */
+typedef struct __attribute__((packed)) {
+  uint32_t entryIndex; ///< Index of this log entry
+  int32_t lon;         ///< Longitude (deg * 1e-7)
+  int32_t lat;         ///< Latitude (deg * 1e-7)
+  int32_t hMSL;        ///< Height above MSL (mm)
+  uint32_t hAcc;       ///< Horizontal accuracy (mm)
+  uint32_t gSpeed;     ///< Ground speed (mm/s)
+  uint32_t heading;    ///< Heading (deg * 1e-5)
+  uint8_t version;     ///< Message version (0x00)
+  uint8_t fixType;     ///< Fix type: 1=DR, 2=2D, 3=3D, 4=GNSS+DR
+  uint16_t year;       ///< Year (UTC)
+  uint8_t month;       ///< Month (1-12)
+  uint8_t day;         ///< Day (1-31)
+  uint8_t hour;        ///< Hour (0-23)
+  uint8_t minute;      ///< Minute (0-59)
+  uint8_t second;      ///< Second (0-60)
+  uint8_t reserved1;   ///< Reserved
+  uint8_t numSV;       ///< Number of satellites
+  uint8_t reserved2;   ///< Reserved
+} UBX_LOG_RETRIEVEPOS_t;
+
+static_assert(sizeof(UBX_LOG_RETRIEVEPOS_t) == 40,
+              "UBX_LOG_RETRIEVEPOS_t must be 40 bytes");
+
+/** UBX-LOG-RETRIEVESTRING (0x21 0x0D) - Byte String Log Entry header.
+ *  16 bytes fixed + variable string bytes.
+ */
+typedef struct __attribute__((packed)) {
+  uint32_t entryIndex; ///< Index of this log entry
+  uint8_t version;     ///< Message version (0x00)
+  uint8_t reserved1;   ///< Reserved
+  uint16_t year;       ///< Year (UTC) or 0 if unknown
+  uint8_t month;       ///< Month (1-12)
+  uint8_t day;         ///< Day (1-31)
+  uint8_t hour;        ///< Hour (0-23)
+  uint8_t minute;      ///< Minute (0-59)
+  uint8_t second;      ///< Second (0-60)
+  uint8_t reserved2;   ///< Reserved
+  uint16_t byteCount;  ///< Size of string in bytes
+} UBX_LOG_RETRIEVESTRING_header_t;
+
+static_assert(sizeof(UBX_LOG_RETRIEVESTRING_header_t) == 16,
+              "UBX_LOG_RETRIEVESTRING_header_t must be 16 bytes");
+
+/** UBX-LOG-FINDTIME request (0x21 0x0E) - Find Log Entry by Time.
+ *  12 bytes. Request to find entry index by time.
+ */
+typedef struct __attribute__((packed)) {
+  uint8_t version;   ///< Message version (0x00)
+  uint8_t type;      ///< Message type: 0=request
+  uint16_t year;     ///< Year (UTC)
+  uint8_t month;     ///< Month (1-12)
+  uint8_t day;       ///< Day (1-31)
+  uint8_t hour;      ///< Hour (0-23)
+  uint8_t minute;    ///< Minute (0-59)
+  uint8_t second;    ///< Second (0-60)
+  uint8_t reserved1; ///< Reserved
+} UBX_LOG_FINDTIME_req_t;
+
+static_assert(sizeof(UBX_LOG_FINDTIME_req_t) == 10,
+              "UBX_LOG_FINDTIME_req_t must be 10 bytes");
+
+/** UBX-LOG-FINDTIME response (0x21 0x0E) - Find Log Entry Response.
+ *  8 bytes. Response with entry index.
+ */
+typedef struct __attribute__((packed)) {
+  uint8_t version;      ///< Message version (0x01)
+  uint8_t type;         ///< Message type: 1=response
+  uint8_t reserved1[2]; ///< Reserved
+  uint32_t entryNumber; ///< Entry index (0xFFFFFFFF if not found)
+} UBX_LOG_FINDTIME_resp_t;
+
+static_assert(sizeof(UBX_LOG_FINDTIME_resp_t) == 8,
+              "UBX_LOG_FINDTIME_resp_t must be 8 bytes");
 
 #endif // ADAFRUIT_UBLOX_TYPEDEF_H
