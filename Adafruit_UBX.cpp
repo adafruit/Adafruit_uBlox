@@ -720,3 +720,336 @@ bool Adafruit_UBX::sendMessage(uint8_t msgClass, uint8_t msgId,
 
   return (written == length + 8);
 }
+
+// =====================================================================
+// Phase 3: CFG Message Implementations
+// =====================================================================
+
+/*!
+ *  @brief  Poll CFG-NAV5 message (navigation engine settings)
+ *  @param  nav5 Pointer to struct to fill
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return True if response received
+ */
+bool Adafruit_UBX::pollCfgNav5(UBX_CFG_NAV5_t* nav5, uint16_t timeout_ms) {
+  return poll(UBX_CLASS_CFG, UBX_CFG_NAV5, nav5, sizeof(UBX_CFG_NAV5_t),
+              timeout_ms);
+}
+
+/*!
+ *  @brief  Set CFG-NAV5 message (navigation engine settings)
+ *  @param  nav5 Pointer to struct with settings to apply
+ *  @return True if acknowledged
+ */
+bool Adafruit_UBX::setCfgNav5(UBX_CFG_NAV5_t* nav5) {
+  UBXSendStatus status = sendMessageWithAck(
+      UBX_CLASS_CFG, UBX_CFG_NAV5, (uint8_t*)nav5, sizeof(UBX_CFG_NAV5_t));
+  return (status == UBX_SEND_SUCCESS);
+}
+
+/*!
+ *  @brief  Set the dynamic platform model
+ *  @param  model Dynamic model (see UBX_DYNMODEL_* defines)
+ *  @return True if acknowledged
+ */
+bool Adafruit_UBX::setDynamicModel(uint8_t model) {
+  UBX_CFG_NAV5_t nav5;
+  if (!pollCfgNav5(&nav5)) {
+    return false;
+  }
+  nav5.mask = UBX_NAV5_MASK_DYN;
+  nav5.dynModel = model;
+  return setCfgNav5(&nav5);
+}
+
+/*!
+ *  @brief  Get current dynamic platform model
+ *  @return Dynamic model value, or 0xFF on failure
+ */
+uint8_t Adafruit_UBX::getDynamicModel() {
+  UBX_CFG_NAV5_t nav5;
+  if (!pollCfgNav5(&nav5)) {
+    return 0xFF;
+  }
+  return nav5.dynModel;
+}
+
+/*!
+ *  @brief  Set the position fix mode
+ *  @param  mode Fix mode (1=2D only, 2=3D only, 3=auto 2D/3D)
+ *  @return True if acknowledged
+ */
+bool Adafruit_UBX::setFixMode(uint8_t mode) {
+  UBX_CFG_NAV5_t nav5;
+  if (!pollCfgNav5(&nav5)) {
+    return false;
+  }
+  nav5.mask = UBX_NAV5_MASK_POSFIX;
+  nav5.fixMode = mode;
+  return setCfgNav5(&nav5);
+}
+
+/*!
+ *  @brief  Poll CFG-GNSS message (GNSS system configuration)
+ *  @param  header Pointer to header struct to fill
+ *  @param  blocks Array of GNSS config blocks to fill
+ *  @param  maxBlocks Maximum number of blocks the array can hold
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return Number of blocks read, or 0 on failure
+ */
+uint8_t Adafruit_UBX::pollCfgGnss(UBX_CFG_GNSS_header_t* header,
+                                  UBX_CFG_GNSS_block_t* blocks,
+                                  uint8_t maxBlocks, uint16_t timeout_ms) {
+  if (!sendMessage(UBX_CLASS_CFG, UBX_CFG_GNSS, NULL, 0)) {
+    return 0;
+  }
+
+  uint32_t startTime = millis();
+  while (millis() - startTime < timeout_ms) {
+    if (checkMessages()) {
+      if (_lastMsgClass == UBX_CLASS_CFG && _lastMsgId == UBX_CFG_GNSS) {
+        uint16_t usablePayload = min(_lastPayloadLength, MAX_PAYLOAD_SIZE);
+        if (usablePayload < sizeof(UBX_CFG_GNSS_header_t)) {
+          return 0;
+        }
+
+        memcpy(header, _buffer + 6, sizeof(UBX_CFG_GNSS_header_t));
+
+        uint16_t blockBytes = usablePayload - sizeof(UBX_CFG_GNSS_header_t);
+        uint8_t blocksInPayload = blockBytes / sizeof(UBX_CFG_GNSS_block_t);
+        uint8_t blocksToRead = min(blocksInPayload, maxBlocks);
+        blocksToRead = min(blocksToRead, header->numConfigBlocks);
+
+        for (uint8_t i = 0; i < blocksToRead; i++) {
+          memcpy(&blocks[i],
+                 _buffer + 6 + sizeof(UBX_CFG_GNSS_header_t) +
+                     (i * sizeof(UBX_CFG_GNSS_block_t)),
+                 sizeof(UBX_CFG_GNSS_block_t));
+        }
+        return blocksToRead;
+      }
+    }
+    delay(1);
+  }
+  return 0;
+}
+
+/*!
+ *  @brief  Set CFG-GNSS message (GNSS system configuration)
+ *  @param  header Pointer to header struct
+ *  @param  blocks Array of GNSS config blocks
+ *  @param  numBlocks Number of blocks to send
+ *  @return True if acknowledged
+ */
+bool Adafruit_UBX::setCfgGnss(UBX_CFG_GNSS_header_t* header,
+                              UBX_CFG_GNSS_block_t* blocks, uint8_t numBlocks) {
+  uint16_t totalLen = sizeof(UBX_CFG_GNSS_header_t) +
+                      (numBlocks * sizeof(UBX_CFG_GNSS_block_t));
+  uint8_t payload[totalLen];
+
+  header->numConfigBlocks = numBlocks;
+  memcpy(payload, header, sizeof(UBX_CFG_GNSS_header_t));
+  memcpy(payload + sizeof(UBX_CFG_GNSS_header_t), blocks,
+         numBlocks * sizeof(UBX_CFG_GNSS_block_t));
+
+  UBXSendStatus status =
+      sendMessageWithAck(UBX_CLASS_CFG, UBX_CFG_GNSS, payload, totalLen);
+  return (status == UBX_SEND_SUCCESS);
+}
+
+/*!
+ *  @brief  Enable or disable a specific GNSS system
+ *  @param  gnssId GNSS identifier (see UBX_GNSS_ID_* defines)
+ *  @param  enable True to enable, false to disable
+ *  @return True if successful
+ */
+bool Adafruit_UBX::enableGNSS(uint8_t gnssId, bool enable) {
+  UBX_CFG_GNSS_header_t header;
+  UBX_CFG_GNSS_block_t blocks[8];
+  uint8_t numBlocks = pollCfgGnss(&header, blocks, 8);
+  if (numBlocks == 0) {
+    return false;
+  }
+
+  for (uint8_t i = 0; i < numBlocks; i++) {
+    if (blocks[i].gnssId == gnssId) {
+      if (enable) {
+        blocks[i].flags |= UBX_GNSS_FLAG_ENABLE;
+      } else {
+        blocks[i].flags &= ~UBX_GNSS_FLAG_ENABLE;
+      }
+      break;
+    }
+  }
+
+  return setCfgGnss(&header, blocks, numBlocks);
+}
+
+/*!
+ *  @brief  Poll CFG-NMEA message (NMEA protocol configuration)
+ *  @param  nmea Pointer to struct to fill
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return True if response received
+ */
+bool Adafruit_UBX::pollCfgNmea(UBX_CFG_NMEA_t* nmea, uint16_t timeout_ms) {
+  return poll(UBX_CLASS_CFG, UBX_CFG_NMEA, nmea, sizeof(UBX_CFG_NMEA_t),
+              timeout_ms);
+}
+
+/*!
+ *  @brief  Set CFG-NMEA message (NMEA protocol configuration)
+ *  @param  nmea Pointer to struct with settings to apply
+ *  @return True if acknowledged
+ */
+bool Adafruit_UBX::setCfgNmea(UBX_CFG_NMEA_t* nmea) {
+  UBXSendStatus status = sendMessageWithAck(
+      UBX_CLASS_CFG, UBX_CFG_NMEA, (uint8_t*)nmea, sizeof(UBX_CFG_NMEA_t));
+  return (status == UBX_SEND_SUCCESS);
+}
+
+/*!
+ *  @brief  Poll CFG-ANT message (antenna control settings)
+ *  @param  ant Pointer to struct to fill
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return True if response received
+ */
+bool Adafruit_UBX::pollCfgAnt(UBX_CFG_ANT_t* ant, uint16_t timeout_ms) {
+  return poll(UBX_CLASS_CFG, UBX_CFG_ANT, ant, sizeof(UBX_CFG_ANT_t),
+              timeout_ms);
+}
+
+/*!
+ *  @brief  Set CFG-ANT message (antenna control settings)
+ *  @param  ant Pointer to struct with settings to apply
+ *  @return True if acknowledged
+ */
+bool Adafruit_UBX::setCfgAnt(UBX_CFG_ANT_t* ant) {
+  UBXSendStatus status = sendMessageWithAck(
+      UBX_CLASS_CFG, UBX_CFG_ANT, (uint8_t*)ant, sizeof(UBX_CFG_ANT_t));
+  return (status == UBX_SEND_SUCCESS);
+}
+
+/*!
+ *  @brief  Poll CFG-SBAS message (SBAS configuration)
+ *  @param  sbas Pointer to struct to fill
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return True if response received
+ */
+bool Adafruit_UBX::pollCfgSbas(UBX_CFG_SBAS_t* sbas, uint16_t timeout_ms) {
+  return poll(UBX_CLASS_CFG, UBX_CFG_SBAS, sbas, sizeof(UBX_CFG_SBAS_t),
+              timeout_ms);
+}
+
+/*!
+ *  @brief  Set CFG-SBAS message (SBAS configuration)
+ *  @param  sbas Pointer to struct with settings to apply
+ *  @return True if acknowledged
+ */
+bool Adafruit_UBX::setCfgSbas(UBX_CFG_SBAS_t* sbas) {
+  UBXSendStatus status = sendMessageWithAck(
+      UBX_CLASS_CFG, UBX_CFG_SBAS, (uint8_t*)sbas, sizeof(UBX_CFG_SBAS_t));
+  return (status == UBX_SEND_SUCCESS);
+}
+
+/*!
+ *  @brief  Enable or disable SBAS
+ *  @param  enable True to enable, false to disable
+ *  @return True if successful
+ */
+bool Adafruit_UBX::enableSBAS(bool enable) {
+  UBX_CFG_SBAS_t sbas;
+  if (!pollCfgSbas(&sbas)) {
+    return false;
+  }
+  if (enable) {
+    sbas.mode |= UBX_SBAS_MODE_ENABLED;
+  } else {
+    sbas.mode &= ~UBX_SBAS_MODE_ENABLED;
+  }
+  return setCfgSbas(&sbas);
+}
+
+/*!
+ *  @brief  Poll CFG-INF message (info message configuration) for a protocol
+ *  @param  protocolID Protocol ID (0=UBX, 1=NMEA)
+ *  @param  blocks Array of INF config blocks to fill
+ *  @param  maxBlocks Maximum number of blocks
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return Number of blocks read, or 0 on failure
+ */
+uint8_t Adafruit_UBX::pollCfgInf(uint8_t protocolID,
+                                 UBX_CFG_INF_block_t* blocks, uint8_t maxBlocks,
+                                 uint16_t timeout_ms) {
+  // Poll with protocol ID as 1-byte payload
+  if (!sendMessage(UBX_CLASS_CFG, UBX_CFG_INF, &protocolID, 1)) {
+    return 0;
+  }
+
+  uint32_t startTime = millis();
+  while (millis() - startTime < timeout_ms) {
+    if (checkMessages()) {
+      if (_lastMsgClass == UBX_CLASS_CFG && _lastMsgId == UBX_CFG_INF) {
+        uint16_t usablePayload = min(_lastPayloadLength, MAX_PAYLOAD_SIZE);
+        uint8_t blocksInPayload = usablePayload / sizeof(UBX_CFG_INF_block_t);
+        uint8_t blocksToRead = min(blocksInPayload, maxBlocks);
+
+        for (uint8_t i = 0; i < blocksToRead; i++) {
+          memcpy(&blocks[i], _buffer + 6 + (i * sizeof(UBX_CFG_INF_block_t)),
+                 sizeof(UBX_CFG_INF_block_t));
+        }
+        return blocksToRead;
+      }
+    }
+    delay(1);
+  }
+  return 0;
+}
+
+/*!
+ *  @brief  Set CFG-INF message (info message configuration)
+ *  @param  blocks Array of INF config blocks
+ *  @param  numBlocks Number of blocks to send
+ *  @return True if acknowledged
+ */
+bool Adafruit_UBX::setCfgInf(UBX_CFG_INF_block_t* blocks, uint8_t numBlocks) {
+  uint16_t totalLen = numBlocks * sizeof(UBX_CFG_INF_block_t);
+  UBXSendStatus status = sendMessageWithAck(UBX_CLASS_CFG, UBX_CFG_INF,
+                                            (uint8_t*)blocks, totalLen);
+  return (status == UBX_SEND_SUCCESS);
+}
+
+/*!
+ *  @brief  Poll CFG-RXM message (receiver manager configuration)
+ *  @param  rxm Pointer to struct to fill
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return True if response received
+ */
+bool Adafruit_UBX::pollCfgRxm(UBX_CFG_RXM_t* rxm, uint16_t timeout_ms) {
+  return poll(UBX_CLASS_CFG, UBX_CFG_RXM, rxm, sizeof(UBX_CFG_RXM_t),
+              timeout_ms);
+}
+
+/*!
+ *  @brief  Set CFG-RXM message (receiver manager configuration)
+ *  @param  rxm Pointer to struct with settings to apply
+ *  @return True if acknowledged
+ */
+bool Adafruit_UBX::setCfgRxm(UBX_CFG_RXM_t* rxm) {
+  UBXSendStatus status = sendMessageWithAck(
+      UBX_CLASS_CFG, UBX_CFG_RXM, (uint8_t*)rxm, sizeof(UBX_CFG_RXM_t));
+  return (status == UBX_SEND_SUCCESS);
+}
+
+/*!
+ *  @brief  Enable or disable power save mode
+ *  @param  enable True for power save mode, false for continuous
+ *  @return True if successful
+ */
+bool Adafruit_UBX::setPowerSave(bool enable) {
+  UBX_CFG_RXM_t rxm;
+  rxm.reserved1 = 8; // Must always be 8
+  rxm.lpMode = enable ? UBX_RXM_LPMODE_POWERSAVE : UBX_RXM_LPMODE_CONTINUOUS;
+  return setCfgRxm(&rxm);
+}
+
+// =====================================================================

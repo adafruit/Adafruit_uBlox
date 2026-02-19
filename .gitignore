@@ -5,3 +5,4 @@ html*.pdf
 docs/*.txt
 SAM-M8Q_DataSheet_UBX-16012619.pdf
 u-blox8-M8_ReceiverDescrProtSpec_UBX-13003221.pdf
+build/

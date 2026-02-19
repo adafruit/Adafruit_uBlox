@@ -134,17 +134,16 @@ size_t Adafruit_UBloxDDC::write(uint8_t val) {
  *  @return Number of bytes written
  */
 size_t Adafruit_UBloxDDC::write(const uint8_t* buffer, size_t size) {
-  // For I2C/DDC, we need at least 2 bytes for a write
-  if (size < 2) {
-    // Single-byte writes aren't supported
-    return 0;
+  size_t bytes_written = 0;
+  while (bytes_written < size) {
+    size_t chunk_size = min((size_t)32, size - bytes_written);
+    if (!_i2cDevice->write(buffer + bytes_written, chunk_size)) {
+      return bytes_written; // Return bytes written so far on error
+    }
+    bytes_written += chunk_size;
+    delay(5); // Small delay between chunks
   }
-
-  // Use Adafruit_BusIO to handle the I2C transaction
-  if (_i2cDevice->write(buffer, size)) {
-    return size;
-  }
-  return 0;
+  return bytes_written;
 }
 
 /*!

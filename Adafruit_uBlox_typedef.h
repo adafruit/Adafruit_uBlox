@@ -434,4 +434,208 @@ typedef union {
   uint8_t raw[20];         ///< Raw byte array for CFG-PRT message
 } UBX_CFG_PRT_t;
 
+/** UBX-CFG-NAV5 (0x06 0x24) - Navigation Engine Settings.
+ *  36 bytes. Controls dynamic model, fix mode, masks, etc.
+ *  Dynamic models: 0=portable, 2=stationary, 3=pedestrian, 4=automotive,
+ *                  5=sea, 6=airborne1g, 7=airborne2g, 8=airborne4g
+ *  Fix modes: 1=2D only, 2=3D only, 3=auto 2D/3D
+ */
+typedef struct __attribute__((packed)) {
+  uint16_t mask;              ///< Parameters bitmask (see UBX_NAV5_MASK_*)
+  uint8_t dynModel;           ///< Dynamic platform model
+  uint8_t fixMode;            ///< Position fixing mode
+  int32_t fixedAlt;           ///< Fixed altitude for 2D mode (m * 0.01)
+  uint32_t fixedAltVar;       ///< Fixed altitude variance (m^2 * 0.0001)
+  int8_t minElev;             ///< Minimum elevation for satellite (deg)
+  uint8_t drLimit;            ///< Reserved
+  uint16_t pDop;              ///< Position DOP mask (* 0.1)
+  uint16_t tDop;              ///< Time DOP mask (* 0.1)
+  uint16_t pAcc;              ///< Position accuracy mask (m)
+  uint16_t tAcc;              ///< Time accuracy mask (m)
+  uint8_t staticHoldThresh;   ///< Static hold threshold (cm/s)
+  uint8_t dgnssTimeout;       ///< DGNSS timeout (s)
+  uint8_t cnoThreshNumSVs;    ///< Number of satellites for C/N0 threshold
+  uint8_t cnoThresh;          ///< C/N0 threshold (dBHz)
+  uint8_t reserved1[2];       ///< Reserved
+  uint16_t staticHoldMaxDist; ///< Static hold distance threshold (m)
+  uint8_t utcStandard;  ///< UTC standard (0=auto, 3=USNO, 5=EU, 6=SU, 7=NTSC)
+  uint8_t reserved2[5]; ///< Reserved
+} UBX_CFG_NAV5_t;
+
+static_assert(sizeof(UBX_CFG_NAV5_t) == 36, "UBX_CFG_NAV5_t must be 36 bytes");
+
+// CFG-NAV5 mask bits
+#define UBX_NAV5_MASK_DYN 0x0001          ///< Apply dynamic model
+#define UBX_NAV5_MASK_MINEL 0x0002        ///< Apply minimum elevation
+#define UBX_NAV5_MASK_POSFIX 0x0004       ///< Apply fix mode
+#define UBX_NAV5_MASK_POSMASK 0x0010      ///< Apply position mask
+#define UBX_NAV5_MASK_TIMEMASK 0x0020     ///< Apply time mask
+#define UBX_NAV5_MASK_STATICHOLD 0x0040   ///< Apply static hold settings
+#define UBX_NAV5_MASK_DGPS 0x0080         ///< Apply DGPS settings
+#define UBX_NAV5_MASK_CNOTHRESHOLD 0x0100 ///< Apply CNO threshold
+#define UBX_NAV5_MASK_UTC 0x0200          ///< Apply UTC settings
+
+// CFG-NAV5 dynamic model values
+#define UBX_DYNMODEL_PORTABLE 0   ///< Portable
+#define UBX_DYNMODEL_STATIONARY 2 ///< Stationary
+#define UBX_DYNMODEL_PEDESTRIAN 3 ///< Pedestrian
+#define UBX_DYNMODEL_AUTOMOTIVE 4 ///< Automotive
+#define UBX_DYNMODEL_SEA 5        ///< Sea
+#define UBX_DYNMODEL_AIRBORNE1G 6 ///< Airborne <1g
+#define UBX_DYNMODEL_AIRBORNE2G 7 ///< Airborne <2g
+#define UBX_DYNMODEL_AIRBORNE4G 8 ///< Airborne <4g
+
+/** UBX-CFG-GNSS (0x06 0x3E) - GNSS Configuration header.
+ *  4 bytes fixed header, followed by 8 bytes per config block.
+ */
+typedef struct __attribute__((packed)) {
+  uint8_t msgVer;          ///< Message version (0x00)
+  uint8_t numTrkChHw;      ///< Number of tracking channels in hardware (ro)
+  uint8_t numTrkChUse;     ///< Number of tracking channels to use
+  uint8_t numConfigBlocks; ///< Number of config blocks following
+} UBX_CFG_GNSS_header_t;
+
+static_assert(sizeof(UBX_CFG_GNSS_header_t) == 4,
+              "UBX_CFG_GNSS_header_t must be 4 bytes");
+
+/** UBX-CFG-GNSS config block. 8 bytes per GNSS system. */
+typedef struct __attribute__((packed)) {
+  uint8_t gnssId;    ///< GNSS identifier (0=GPS, 1=SBAS, 2=Galileo, 3=BeiDou,
+                     ///< 5=QZSS, 6=GLONASS)
+  uint8_t resTrkCh;  ///< Number of reserved tracking channels
+  uint8_t maxTrkCh;  ///< Maximum number of tracking channels
+  uint8_t reserved1; ///< Reserved
+  uint32_t flags;    ///< Flags (bit0=enable, bits16-23=sigCfgMask)
+} UBX_CFG_GNSS_block_t;
+
+static_assert(sizeof(UBX_CFG_GNSS_block_t) == 8,
+              "UBX_CFG_GNSS_block_t must be 8 bytes");
+
+// GNSS IDs
+#define UBX_GNSS_ID_GPS 0     ///< GPS
+#define UBX_GNSS_ID_SBAS 1    ///< SBAS
+#define UBX_GNSS_ID_GALILEO 2 ///< Galileo
+#define UBX_GNSS_ID_BEIDOU 3  ///< BeiDou
+#define UBX_GNSS_ID_IMES 4    ///< IMES
+#define UBX_GNSS_ID_QZSS 5    ///< QZSS
+#define UBX_GNSS_ID_GLONASS 6 ///< GLONASS
+
+// GNSS flags
+#define UBX_GNSS_FLAG_ENABLE 0x00000001 ///< Enable this GNSS
+
+/** UBX-CFG-NMEA (0x06 0x17) - NMEA Protocol Configuration V1.
+ *  20 bytes. Controls NMEA output formatting.
+ */
+typedef struct __attribute__((packed)) {
+  uint8_t filter;        ///< Filter flags (see bitfield)
+  uint8_t nmeaVersion;   ///< NMEA version (0x21=2.1, 0x23=2.3, 0x40=4.0,
+                         ///< 0x41=4.10, 0x4B=4.11)
+  uint8_t numSV;         ///< Max SVs per TalkerId (0=unlimited, 8, 12, 16)
+  uint8_t flags;         ///< Flags (bit0=compat, bit1=consider, bit2=limit82,
+                         ///< bit3=highPrec)
+  uint32_t gnssToFilter; ///< GNSS filter mask (bit0=GPS, bit1=SBAS, etc.)
+  uint8_t svNumbering;   ///< SV numbering (0=strict, 1=extended)
+  uint8_t mainTalkerId;  ///< Main Talker ID (0=not overridden, 1=GP, 2=GL,
+                         ///< 3=GN, 4=GA, 5=GB, 6=GQ)
+  uint8_t gsvTalkerId;   ///< GSV Talker ID (0=GNSS specific, 1=main)
+  uint8_t version;       ///< Message version (0x01)
+  char bdsTalkerId[2];   ///< BeiDou Talker ID (2 chars)
+  uint8_t reserved1[6];  ///< Reserved
+} UBX_CFG_NMEA_t;
+
+static_assert(sizeof(UBX_CFG_NMEA_t) == 20, "UBX_CFG_NMEA_t must be 20 bytes");
+
+// CFG-NMEA filter bits
+#define UBX_NMEA_FILTER_POSFILT 0x01     ///< Position output for failed fixes
+#define UBX_NMEA_FILTER_MSKPOSFILT 0x02  ///< Position output for invalid fixes
+#define UBX_NMEA_FILTER_TIMEFILT 0x04    ///< Time output for invalid times
+#define UBX_NMEA_FILTER_DATEFILT 0x08    ///< Date output for invalid dates
+#define UBX_NMEA_FILTER_GPSONLYFILT 0x10 ///< Restrict to GPS only
+#define UBX_NMEA_FILTER_TRACKFILT 0x20   ///< COG output when frozen
+
+// CFG-NMEA flags bits
+#define UBX_NMEA_FLAGS_COMPAT 0x01   ///< Compatibility mode
+#define UBX_NMEA_FLAGS_CONSIDER 0x02 ///< Considering mode
+#define UBX_NMEA_FLAGS_LIMIT82 0x04  ///< Limit to 82 chars
+#define UBX_NMEA_FLAGS_HIGHPREC 0x08 ///< High precision mode
+
+/** UBX-CFG-ANT (0x06 0x13) - Antenna Control Settings.
+ *  4 bytes. Controls antenna supervisor.
+ */
+typedef struct __attribute__((packed)) {
+  uint16_t flags; ///< Antenna flags (bit0=svcs, bit1=scd, bit2=ocd,
+                  ///< bit3=pdwnOnSCD, bit4=recovery)
+  uint16_t pins;  ///< Pin configuration (bits0-4=pinSwitch, bits5-9=pinSCD,
+                  ///< bits10-14=pinOCD, bit15=reconfig)
+} UBX_CFG_ANT_t;
+
+static_assert(sizeof(UBX_CFG_ANT_t) == 4, "UBX_CFG_ANT_t must be 4 bytes");
+
+// CFG-ANT flags bits
+#define UBX_ANT_FLAG_SVCS 0x0001      ///< Enable supply voltage control
+#define UBX_ANT_FLAG_SCD 0x0002       ///< Enable short circuit detection
+#define UBX_ANT_FLAG_OCD 0x0004       ///< Enable open circuit detection
+#define UBX_ANT_FLAG_PDWNONSCD 0x0008 ///< Power down on short circuit
+#define UBX_ANT_FLAG_RECOVERY 0x0010  ///< Enable auto recovery
+
+/** UBX-CFG-SBAS (0x06 0x16) - SBAS Configuration.
+ *  8 bytes. Controls SBAS settings.
+ */
+typedef struct __attribute__((packed)) {
+  uint8_t mode;      ///< SBAS mode (bit0=enabled, bit1=test)
+  uint8_t usage;     ///< SBAS usage (bit0=range, bit1=diffCorr, bit2=integrity)
+  uint8_t maxSBAS;   ///< Maximum number of SBAS search channels
+  uint8_t scanmode2; ///< Scanmode bitmask (see PRN details in spec)
+  uint32_t scanmode1; ///< Scanmode bitmask (PRN 120-158 bits)
+} UBX_CFG_SBAS_t;
+
+static_assert(sizeof(UBX_CFG_SBAS_t) == 8, "UBX_CFG_SBAS_t must be 8 bytes");
+
+// CFG-SBAS mode bits
+#define UBX_SBAS_MODE_ENABLED 0x01 ///< SBAS enabled
+#define UBX_SBAS_MODE_TEST 0x02    ///< SBAS test mode
+
+// CFG-SBAS usage bits
+#define UBX_SBAS_USAGE_RANGE 0x01     ///< Use SBAS for ranging
+#define UBX_SBAS_USAGE_DIFFCORR 0x02  ///< Use SBAS diff corrections
+#define UBX_SBAS_USAGE_INTEGRITY 0x04 ///< Use SBAS integrity info
+
+/** UBX-CFG-INF (0x06 0x02) - Information Message Configuration block.
+ *  10 bytes per protocol.
+ */
+typedef struct __attribute__((packed)) {
+  uint8_t protocolID;    ///< Protocol ID (0=UBX, 1=NMEA)
+  uint8_t reserved1[3];  ///< Reserved
+  uint8_t infMsgMask[6]; ///< Info message mask per port (bit0=ERROR,
+                         ///< bit1=WARNING, bit2=NOTICE, bit3=TEST, bit4=DEBUG)
+} UBX_CFG_INF_block_t;
+
+static_assert(sizeof(UBX_CFG_INF_block_t) == 10,
+              "UBX_CFG_INF_block_t must be 10 bytes");
+
+// CFG-INF protocol IDs
+#define UBX_INF_PROTOCOL_UBX 0  ///< UBX protocol
+#define UBX_INF_PROTOCOL_NMEA 1 ///< NMEA protocol
+
+// CFG-INF message mask bits
+#define UBX_INF_MSG_ERROR 0x01   ///< ERROR messages
+#define UBX_INF_MSG_WARNING 0x02 ///< WARNING messages
+#define UBX_INF_MSG_NOTICE 0x04  ///< NOTICE messages
+#define UBX_INF_MSG_TEST 0x08    ///< TEST messages
+#define UBX_INF_MSG_DEBUG 0x10   ///< DEBUG messages
+
+/** UBX-CFG-RXM (0x06 0x11) - Receiver Manager Configuration.
+ *  2 bytes. Controls power mode.
+ */
+typedef struct __attribute__((packed)) {
+  uint8_t reserved1; ///< Reserved (always 8)
+  uint8_t lpMode;    ///< Low power mode (0=continuous, 1=power save)
+} UBX_CFG_RXM_t;
+
+static_assert(sizeof(UBX_CFG_RXM_t) == 2, "UBX_CFG_RXM_t must be 2 bytes");
+
+// CFG-RXM low power mode values
+#define UBX_RXM_LPMODE_CONTINUOUS 0 ///< Continuous mode
+#define UBX_RXM_LPMODE_POWERSAVE 1  ///< Power save mode
+
 #endif // ADAFRUIT_UBLOX_TYPEDEF_H

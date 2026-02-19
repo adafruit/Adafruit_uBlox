@@ -86,6 +86,45 @@ class Adafruit_UBX {
   UBXSendStatus setUBXOnly(UBXPortId portID, bool checkAck = true,
                            uint16_t timeout_ms = 500);
 
+  // Phase 3: CFG message poll/set methods
+  // CFG-NAV5: Navigation engine settings
+  bool pollCfgNav5(UBX_CFG_NAV5_t* nav5, uint16_t timeout_ms = 1000);
+  bool setCfgNav5(UBX_CFG_NAV5_t* nav5);
+  bool setDynamicModel(uint8_t model);
+  uint8_t getDynamicModel();
+  bool setFixMode(uint8_t mode);
+
+  // CFG-GNSS: GNSS configuration
+  uint8_t pollCfgGnss(UBX_CFG_GNSS_header_t* header,
+                      UBX_CFG_GNSS_block_t* blocks, uint8_t maxBlocks,
+                      uint16_t timeout_ms = 1000);
+  bool setCfgGnss(UBX_CFG_GNSS_header_t* header, UBX_CFG_GNSS_block_t* blocks,
+                  uint8_t numBlocks);
+  bool enableGNSS(uint8_t gnssId, bool enable);
+
+  // CFG-NMEA: NMEA protocol configuration
+  bool pollCfgNmea(UBX_CFG_NMEA_t* nmea, uint16_t timeout_ms = 1000);
+  bool setCfgNmea(UBX_CFG_NMEA_t* nmea);
+
+  // CFG-ANT: Antenna control settings
+  bool pollCfgAnt(UBX_CFG_ANT_t* ant, uint16_t timeout_ms = 1000);
+  bool setCfgAnt(UBX_CFG_ANT_t* ant);
+
+  // CFG-SBAS: SBAS configuration
+  bool pollCfgSbas(UBX_CFG_SBAS_t* sbas, uint16_t timeout_ms = 1000);
+  bool setCfgSbas(UBX_CFG_SBAS_t* sbas);
+  bool enableSBAS(bool enable);
+
+  // CFG-INF: Info message configuration
+  uint8_t pollCfgInf(uint8_t protocolID, UBX_CFG_INF_block_t* blocks,
+                     uint8_t maxBlocks, uint16_t timeout_ms = 1000);
+  bool setCfgInf(UBX_CFG_INF_block_t* blocks, uint8_t numBlocks);
+
+  // CFG-RXM: Receiver manager configuration
+  bool pollCfgRxm(UBX_CFG_RXM_t* rxm, uint16_t timeout_ms = 1000);
+  bool setCfgRxm(UBX_CFG_RXM_t* rxm);
+  bool setPowerSave(bool enable);
+
   void setMessageCallback(UBXMessageCallback callback); // Set callback function
   UBXMessageCallback onUBXMessage; ///< Callback for message received
 
