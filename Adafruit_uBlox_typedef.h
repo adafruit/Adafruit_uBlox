@@ -137,6 +137,22 @@ typedef struct __attribute__((packed)) {
 static_assert(sizeof(UBX_NAV_STATUS_t) == 16,
               "UBX_NAV_STATUS_t must be 16 bytes");
 
+/** UBX-NAV-DOP (0x01 0x04) - Dilution of Precision.
+ *  18 bytes. All DOP values scaled by 0.01.
+ */
+typedef struct __attribute__((packed)) {
+  uint32_t iTOW; ///< GPS time of week (ms)
+  uint16_t gDOP; ///< Geometric DOP (scale 0.01)
+  uint16_t pDOP; ///< Position DOP (scale 0.01)
+  uint16_t tDOP; ///< Time DOP (scale 0.01)
+  uint16_t vDOP; ///< Vertical DOP (scale 0.01)
+  uint16_t hDOP; ///< Horizontal DOP (scale 0.01)
+  uint16_t nDOP; ///< Northing DOP (scale 0.01)
+  uint16_t eDOP; ///< Easting DOP (scale 0.01)
+} UBX_NAV_DOP_t;
+
+static_assert(sizeof(UBX_NAV_DOP_t) == 18, "UBX_NAV_DOP_t must be 18 bytes");
+
 /** Return values for functions that wait for acknowledgment. */
 typedef enum {
   UBX_SEND_SUCCESS = 0, // Message was acknowledged (ACK)
