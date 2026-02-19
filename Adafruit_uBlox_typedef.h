@@ -40,10 +40,16 @@ typedef enum {
 typedef enum {
   UBX_CFG_PRT = 0x00,   // Port Configuration
   UBX_CFG_MSG = 0x01,   // Message Configuration
+  UBX_CFG_INF = 0x02,   // Information Message Configuration
   UBX_CFG_RST = 0x04,   // Reset Receiver
   UBX_CFG_RATE = 0x08,  // Navigation/Measurement Rate Settings
   UBX_CFG_CFG = 0x09,   // Clear, Save, and Load Configurations
-  UBX_CFG_NAVX5 = 0x23, // Navigation Engine Settings
+  UBX_CFG_RXM = 0x11,   // Receiver Manager Configuration
+  UBX_CFG_ANT = 0x13,   // Antenna Control Settings
+  UBX_CFG_SBAS = 0x16,  // SBAS Configuration
+  UBX_CFG_NMEA = 0x17,  // NMEA Protocol Configuration
+  UBX_CFG_NAVX5 = 0x23, // Navigation Engine Expert Settings
+  UBX_CFG_NAV5 = 0x24,  // Navigation Engine Settings
   UBX_CFG_GNSS = 0x3E,  // GNSS Configuration
   UBX_CFG_PMS = 0x86    // Power Mode Setup
 } UBXCfgMessageId;
@@ -257,6 +263,127 @@ typedef enum {
   UBX_SEND_FAIL,        // Failed to send the message
   UBX_SEND_TIMEOUT      // Timed out waiting for ACK/NAK
 } UBXSendStatus;
+
+/** UBX-NAV-POSLLH (0x01 0x02) - Geodetic Position Solution.
+ *  28 bytes. Lat/Lon/Height position.
+ */
+typedef struct __attribute__((packed)) {
+  uint32_t iTOW;  ///< GPS time of week (ms)
+  int32_t lon;    ///< Longitude (deg, scale 1e-7)
+  int32_t lat;    ///< Latitude (deg, scale 1e-7)
+  int32_t height; ///< Height above ellipsoid (mm)
+  int32_t hMSL;   ///< Height above mean sea level (mm)
+  uint32_t hAcc;  ///< Horizontal accuracy estimate (mm)
+  uint32_t vAcc;  ///< Vertical accuracy estimate (mm)
+} UBX_NAV_POSLLH_t;
+
+static_assert(sizeof(UBX_NAV_POSLLH_t) == 28,
+              "UBX_NAV_POSLLH_t must be 28 bytes");
+
+/** UBX-NAV-VELNED (0x01 0x12) - Velocity Solution in NED Frame.
+ *  36 bytes. North/East/Down velocity components.
+ */
+typedef struct __attribute__((packed)) {
+  uint32_t iTOW;   ///< GPS time of week (ms)
+  int32_t velN;    ///< North velocity component (cm/s)
+  int32_t velE;    ///< East velocity component (cm/s)
+  int32_t velD;    ///< Down velocity component (cm/s)
+  uint32_t speed;  ///< Speed (3-D) (cm/s)
+  uint32_t gSpeed; ///< Ground speed (2-D) (cm/s)
+  int32_t heading; ///< Heading of motion 2-D (deg, scale 1e-5)
+  uint32_t sAcc;   ///< Speed accuracy estimate (cm/s)
+  uint32_t cAcc;   ///< Course / Heading accuracy estimate (deg, scale 1e-5)
+} UBX_NAV_VELNED_t;
+
+static_assert(sizeof(UBX_NAV_VELNED_t) == 36,
+              "UBX_NAV_VELNED_t must be 36 bytes");
+
+/** UBX-NAV-TIMEUTC (0x01 0x21) - UTC Time Solution.
+ *  20 bytes. UTC date and time.
+ */
+typedef struct __attribute__((packed)) {
+  uint32_t iTOW; ///< GPS time of week (ms)
+  uint32_t tAcc; ///< Time accuracy estimate (ns)
+  int32_t nano;  ///< Fraction of second -1e9..1e9 (ns)
+  uint16_t year; ///< Year (UTC)
+  uint8_t month; ///< Month 1..12 (UTC)
+  uint8_t day;   ///< Day 1..31 (UTC)
+  uint8_t hour;  ///< Hour 0..23 (UTC)
+  uint8_t min;   ///< Minute 0..59 (UTC)
+  uint8_t sec;   ///< Second 0..60 (UTC)
+  uint8_t valid; ///< Validity flags (bit0=validTOW, bit1=validWKN,
+                 ///< bit2=validUTC, bits6-7=utcStandard)
+} UBX_NAV_TIMEUTC_t;
+
+static_assert(sizeof(UBX_NAV_TIMEUTC_t) == 20,
+              "UBX_NAV_TIMEUTC_t must be 20 bytes");
+
+/** UBX-NAV-POSECEF (0x01 0x01) - Position Solution in ECEF.
+ *  20 bytes. Earth-Centered Earth-Fixed coordinates.
+ */
+typedef struct __attribute__((packed)) {
+  uint32_t iTOW; ///< GPS time of week (ms)
+  int32_t ecefX; ///< ECEF X coordinate (cm)
+  int32_t ecefY; ///< ECEF Y coordinate (cm)
+  int32_t ecefZ; ///< ECEF Z coordinate (cm)
+  uint32_t pAcc; ///< Position accuracy estimate (cm)
+} UBX_NAV_POSECEF_t;
+
+static_assert(sizeof(UBX_NAV_POSECEF_t) == 20,
+              "UBX_NAV_POSECEF_t must be 20 bytes");
+
+/** UBX-NAV-VELECEF (0x01 0x11) - Velocity Solution in ECEF.
+ *  20 bytes. Earth-Centered Earth-Fixed velocity.
+ */
+typedef struct __attribute__((packed)) {
+  uint32_t iTOW;  ///< GPS time of week (ms)
+  int32_t ecefVX; ///< ECEF X velocity (cm/s)
+  int32_t ecefVY; ///< ECEF Y velocity (cm/s)
+  int32_t ecefVZ; ///< ECEF Z velocity (cm/s)
+  uint32_t sAcc;  ///< Speed accuracy estimate (cm/s)
+} UBX_NAV_VELECEF_t;
+
+static_assert(sizeof(UBX_NAV_VELECEF_t) == 20,
+              "UBX_NAV_VELECEF_t must be 20 bytes");
+
+/** UBX-NAV-CLOCK (0x01 0x22) - Clock Solution.
+ *  20 bytes. Receiver clock bias and drift.
+ */
+typedef struct __attribute__((packed)) {
+  uint32_t iTOW; ///< GPS time of week (ms)
+  int32_t clkB;  ///< Clock bias (ns)
+  int32_t clkD;  ///< Clock drift (ns/s)
+  uint32_t tAcc; ///< Time accuracy estimate (ns)
+  uint32_t fAcc; ///< Frequency accuracy estimate (ps/s)
+} UBX_NAV_CLOCK_t;
+
+static_assert(sizeof(UBX_NAV_CLOCK_t) == 20,
+              "UBX_NAV_CLOCK_t must be 20 bytes");
+
+/** UBX-NAV-EOE (0x01 0x61) - End of Epoch.
+ *  4 bytes. Marks end of navigation epoch.
+ */
+typedef struct __attribute__((packed)) {
+  uint32_t iTOW; ///< GPS time of week (ms)
+} UBX_NAV_EOE_t;
+
+static_assert(sizeof(UBX_NAV_EOE_t) == 4, "UBX_NAV_EOE_t must be 4 bytes");
+
+/** UBX-NAV-TIMEGPS (0x01 0x20) - GPS Time Solution.
+ *  16 bytes. Precise GPS time.
+ */
+typedef struct __attribute__((packed)) {
+  uint32_t iTOW; ///< GPS time of week (ms)
+  int32_t fTOW;  ///< Fractional part of iTOW +/-500000 (ns)
+  int16_t week;  ///< GPS week number
+  int8_t leapS;  ///< GPS leap seconds (GPS-UTC) (s)
+  uint8_t valid; ///< Validity flags (bit0=towValid, bit1=weekValid,
+                 ///< bit2=leapSValid)
+  uint32_t tAcc; ///< Time accuracy estimate (ns)
+} UBX_NAV_TIMEGPS_t;
+
+static_assert(sizeof(UBX_NAV_TIMEGPS_t) == 16,
+              "UBX_NAV_TIMEGPS_t must be 16 bytes");
 
 /** Port ID enum for different interfaces. */
 typedef enum {

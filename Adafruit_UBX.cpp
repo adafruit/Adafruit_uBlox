@@ -229,6 +229,100 @@ uint8_t Adafruit_UBX::pollMONVER(UBX_MON_VER_header_t* header,
 }
 
 /*!
+ *  @brief  Poll NAV-POSLLH message
+ *  @param  posllh Pointer to struct to fill
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return True if response received
+ */
+bool Adafruit_UBX::pollNAVPOSLLH(UBX_NAV_POSLLH_t* posllh,
+                                 uint16_t timeout_ms) {
+  return poll(UBX_CLASS_NAV, UBX_NAV_POSLLH, posllh, sizeof(UBX_NAV_POSLLH_t),
+              timeout_ms);
+}
+
+/*!
+ *  @brief  Poll NAV-VELNED message
+ *  @param  velned Pointer to struct to fill
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return True if response received
+ */
+bool Adafruit_UBX::pollNAVVELNED(UBX_NAV_VELNED_t* velned,
+                                 uint16_t timeout_ms) {
+  return poll(UBX_CLASS_NAV, UBX_NAV_VELNED, velned, sizeof(UBX_NAV_VELNED_t),
+              timeout_ms);
+}
+
+/*!
+ *  @brief  Poll NAV-TIMEUTC message
+ *  @param  timeutc Pointer to struct to fill
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return True if response received
+ */
+bool Adafruit_UBX::pollNAVTIMEUTC(UBX_NAV_TIMEUTC_t* timeutc,
+                                  uint16_t timeout_ms) {
+  return poll(UBX_CLASS_NAV, UBX_NAV_TIMEUTC, timeutc,
+              sizeof(UBX_NAV_TIMEUTC_t), timeout_ms);
+}
+
+/*!
+ *  @brief  Poll NAV-POSECEF message
+ *  @param  posecef Pointer to struct to fill
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return True if response received
+ */
+bool Adafruit_UBX::pollNAVPOSECEF(UBX_NAV_POSECEF_t* posecef,
+                                  uint16_t timeout_ms) {
+  return poll(UBX_CLASS_NAV, UBX_NAV_POSECEF, posecef,
+              sizeof(UBX_NAV_POSECEF_t), timeout_ms);
+}
+
+/*!
+ *  @brief  Poll NAV-VELECEF message
+ *  @param  velecef Pointer to struct to fill
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return True if response received
+ */
+bool Adafruit_UBX::pollNAVVELECEF(UBX_NAV_VELECEF_t* velecef,
+                                  uint16_t timeout_ms) {
+  return poll(UBX_CLASS_NAV, UBX_NAV_VELECEF, velecef,
+              sizeof(UBX_NAV_VELECEF_t), timeout_ms);
+}
+
+/*!
+ *  @brief  Poll NAV-CLOCK message
+ *  @param  clock Pointer to struct to fill
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return True if response received
+ */
+bool Adafruit_UBX::pollNAVCLOCK(UBX_NAV_CLOCK_t* clock, uint16_t timeout_ms) {
+  return poll(UBX_CLASS_NAV, UBX_NAV_CLOCK, clock, sizeof(UBX_NAV_CLOCK_t),
+              timeout_ms);
+}
+
+/*!
+ *  @brief  Poll NAV-EOE message
+ *  @param  eoe Pointer to struct to fill
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return True if response received
+ */
+bool Adafruit_UBX::pollNAVEOE(UBX_NAV_EOE_t* eoe, uint16_t timeout_ms) {
+  return poll(UBX_CLASS_NAV, UBX_NAV_EOE, eoe, sizeof(UBX_NAV_EOE_t),
+              timeout_ms);
+}
+
+/*!
+ *  @brief  Poll NAV-TIMEGPS message
+ *  @param  timegps Pointer to struct to fill
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return True if response received
+ */
+bool Adafruit_UBX::pollNAVTIMEGPS(UBX_NAV_TIMEGPS_t* timegps,
+                                  uint16_t timeout_ms) {
+  return poll(UBX_CLASS_NAV, UBX_NAV_TIMEGPS, timegps,
+              sizeof(UBX_NAV_TIMEGPS_t), timeout_ms);
+}
+
+/*!
  *  @brief  Configure the GPS module to output only UBX protocol (disables NMEA)
  *  @param  portID Port identifier (UBX_PORT_DDC, UBX_PORT_UART1, etc.)
  *  @param  checkAck Whether to wait for acknowledgment

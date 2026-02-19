@@ -72,6 +72,16 @@ class Adafruit_UBX {
   uint8_t pollMONVER(UBX_MON_VER_header_t* header, UBX_MON_VER_ext_t* extArray,
                      uint8_t maxExt, uint16_t timeout_ms = 2000);
 
+  // Phase 2 NAV message poll methods
+  bool pollNAVPOSLLH(UBX_NAV_POSLLH_t* posllh, uint16_t timeout_ms = 1000);
+  bool pollNAVVELNED(UBX_NAV_VELNED_t* velned, uint16_t timeout_ms = 1000);
+  bool pollNAVTIMEUTC(UBX_NAV_TIMEUTC_t* timeutc, uint16_t timeout_ms = 1000);
+  bool pollNAVPOSECEF(UBX_NAV_POSECEF_t* posecef, uint16_t timeout_ms = 1000);
+  bool pollNAVVELECEF(UBX_NAV_VELECEF_t* velecef, uint16_t timeout_ms = 1000);
+  bool pollNAVCLOCK(UBX_NAV_CLOCK_t* clock, uint16_t timeout_ms = 1000);
+  bool pollNAVEOE(UBX_NAV_EOE_t* eoe, uint16_t timeout_ms = 1000);
+  bool pollNAVTIMEGPS(UBX_NAV_TIMEGPS_t* timegps, uint16_t timeout_ms = 1000);
+
   // Configure port to use UBX protocol only (disable NMEA)
   UBXSendStatus setUBXOnly(UBXPortId portID, bool checkAck = true,
                            uint16_t timeout_ms = 500);
