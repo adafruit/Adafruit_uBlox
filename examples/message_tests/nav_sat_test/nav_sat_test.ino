@@ -37,32 +37,6 @@ void printTestResult(const __FlashStringHelper* name, bool pass) {
   Serial.print(F(": "));
 }
 
-uint8_t printGnssName(uint8_t gnssId) {
-  switch (gnssId) {
-    case 0:
-      Serial.print(F("GPS"));
-      return 3;
-    case 1:
-      Serial.print(F("SBAS"));
-      return 4;
-    case 2:
-      Serial.print(F("Galileo"));
-      return 7;
-    case 3:
-      Serial.print(F("BeiDou"));
-      return 6;
-    case 5:
-      Serial.print(F("IMES"));
-      return 4;
-    case 6:
-      Serial.print(F("GLONASS"));
-      return 7;
-    default:
-      Serial.print(F("Unknown"));
-      return 7;
-  }
-}
-
 const __FlashStringHelper* qualityName(uint8_t flags) {
   uint8_t quality = flags & 0x07;
   switch (quality) {
@@ -95,50 +69,35 @@ void printSatTable(uint8_t svsRead) {
     UBX_NAV_SAT_sv_t& sv = svs[i];
     bool used = (sv.flags & (1 << 3)) != 0;
 
-    if (i + 1 < 10) {
-      Serial.print(F(" "));
+    char line[80];
+    const char* gnss;
+    switch (sv.gnssId) {
+      case 0:
+        gnss = "GPS";
+        break;
+      case 1:
+        gnss = "SBAS";
+        break;
+      case 2:
+        gnss = "Galileo";
+        break;
+      case 3:
+        gnss = "BeiDou";
+        break;
+      case 5:
+        gnss = "IMES";
+        break;
+      case 6:
+        gnss = "GLONASS";
+        break;
+      default:
+        gnss = "???";
+        break;
     }
-    Serial.print(i + 1);
-    Serial.print(F(" | "));
-
-    uint8_t gnssLen = printGnssName(sv.gnssId);
-    for (uint8_t pad = gnssLen; pad < 8; pad++) {
-      Serial.print(F(" "));
-    }
-
-    Serial.print(F(" | "));
-    if (sv.svId < 10) {
-      Serial.print(F("0"));
-    }
-    Serial.print(sv.svId);
-    Serial.print(F(" | "));
-    if (sv.cno < 100) {
-      Serial.print(F(" "));
-    }
-    if (sv.cno < 10) {
-      Serial.print(F(" "));
-    }
-    Serial.print(sv.cno);
-    Serial.print(F(" | "));
-    if (sv.elev >= 0 && sv.elev < 10) {
-      Serial.print(F(" "));
-    }
-    Serial.print(sv.elev);
-    Serial.print(F(" | "));
-    if (sv.azim < 100) {
-      Serial.print(F(" "));
-    }
-    if (sv.azim < 10) {
-      Serial.print(F(" "));
-    }
-    Serial.print(sv.azim);
-    Serial.print(F(" | "));
-    if (used) {
-      Serial.print(F("yes"));
-    } else {
-      Serial.print(F("no"));
-    }
-    Serial.print(F(" | "));
+    snprintf(line, sizeof(line), "%2d | %-8s | %3d | %3d | %4d | %4d | %-4s | ",
+             i + 1, gnss, sv.svId, sv.cno, sv.elev, sv.azim,
+             used ? "yes " : "no  ");
+    Serial.print(line);
     Serial.println(qualityName(sv.flags));
   }
 }
