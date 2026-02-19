@@ -239,11 +239,14 @@ typedef enum {
 
 /** UBX MON Message IDs. */
 typedef enum {
-  UBX_MON_VER = 0x04, // Receiver/Software Version
-  UBX_MON_HW = 0x09,  // Hardware Status
-  UBX_MON_HW2 = 0x0B, // Extended Hardware Status
-  UBX_MON_IO = 0x02,  // I/O System Status
-  UBX_MON_GNSS = 0x28 // GNSS System Info
+  UBX_MON_IO = 0x02,    // I/O System Status
+  UBX_MON_VER = 0x04,   // Receiver/Software Version
+  UBX_MON_MSGPP = 0x06, // Message Parse/Process Status
+  UBX_MON_RXBUF = 0x07, // Receiver Buffer Status
+  UBX_MON_TXBUF = 0x08, // Transmitter Buffer Status
+  UBX_MON_HW = 0x09,    // Hardware Status
+  UBX_MON_HW2 = 0x0B,   // Extended Hardware Status
+  UBX_MON_GNSS = 0x28   // GNSS System Info
 } UBXMonMessageId;
 
 /** UBX-MON-VER (0x0A 0x04) - Receiver/Software Version header.
@@ -790,5 +793,136 @@ static_assert(sizeof(UBX_MON_HW_t) == 60, "UBX_MON_HW_t must be 60 bytes");
 #define UBX_MON_HW_APOWER_OFF 0      ///< Antenna power off
 #define UBX_MON_HW_APOWER_ON 1       ///< Antenna power on
 #define UBX_MON_HW_APOWER_DONTKNOW 2 ///< Antenna power unknown
+
+/** UBX-MON-GNSS (0x0A 0x28) - GNSS System Information.
+ *  8 bytes. Reports major GNSS selection capabilities and status.
+ */
+typedef struct __attribute__((packed)) {
+  uint8_t version;      ///< Message version (0x00)
+  uint8_t supported;    ///< Bit mask of supported GNSS (bit0=GPS, bit1=GLONASS,
+                        ///< bit2=BeiDou, bit3=Galileo)
+  uint8_t defaultGnss;  ///< Bit mask of default GNSS selection
+  uint8_t enabled;      ///< Bit mask of currently enabled GNSS
+  uint8_t simultaneous; ///< Max concurrent major GNSS supported
+  uint8_t reserved1[3]; ///< Reserved
+} UBX_MON_GNSS_t;
+
+static_assert(sizeof(UBX_MON_GNSS_t) == 8, "UBX_MON_GNSS_t must be 8 bytes");
+
+// MON-GNSS bit masks (apply to supported, defaultGnss, enabled fields)
+#define UBX_MON_GNSS_GPS 0x01     ///< GPS supported/enabled
+#define UBX_MON_GNSS_GLONASS 0x02 ///< GLONASS supported/enabled
+#define UBX_MON_GNSS_BEIDOU 0x04  ///< BeiDou supported/enabled
+#define UBX_MON_GNSS_GALILEO 0x08 ///< Galileo supported/enabled
+
+/** UBX-MON-HW2 (0x0A 0x0B) - Extended Hardware Status.
+ *  28 bytes. IQ imbalance, config source, POST status.
+ */
+typedef struct __attribute__((packed)) {
+  int8_t ofsI;       ///< I-part imbalance (-128 to 127)
+  uint8_t magI;      ///< I-part magnitude (0=no signal, 255=max)
+  int8_t ofsQ;       ///< Q-part imbalance (-128 to 127)
+  uint8_t magQ;      ///< Q-part magnitude (0=no signal, 255=max)
+  uint8_t cfgSource; ///< Config source: 114=ROM, 111=OTP, 112=pins, 102=flash
+  uint8_t reserved1[3]; ///< Reserved
+  uint32_t lowLevCfg;   ///< Low-level configuration (obsolete after v15)
+  uint8_t reserved2[8]; ///< Reserved
+  uint32_t postStatus;  ///< POST status word
+  uint8_t reserved3[4]; ///< Reserved
+} UBX_MON_HW2_t;
+
+static_assert(sizeof(UBX_MON_HW2_t) == 28, "UBX_MON_HW2_t must be 28 bytes");
+
+// MON-HW2 config source values
+#define UBX_MON_HW2_CFG_ROM 114   ///< Configuration from ROM
+#define UBX_MON_HW2_CFG_OTP 111   ///< Configuration from OTP
+#define UBX_MON_HW2_CFG_PINS 112  ///< Configuration from pins
+#define UBX_MON_HW2_CFG_FLASH 102 ///< Configuration from flash
+
+/** UBX-MON-IO (0x0A 0x02) - I/O System Status per port.
+ *  20 bytes per port. Variable length message (20*N ports).
+ */
+typedef struct __attribute__((packed)) {
+  uint32_t rxBytes;     ///< Number of bytes ever received
+  uint32_t txBytes;     ///< Number of bytes ever sent
+  uint16_t parityErrs;  ///< Number of 100ms slots with parity errors
+  uint16_t framingErrs; ///< Number of 100ms slots with framing errors
+  uint16_t overrunErrs; ///< Number of 100ms slots with overrun errors
+  uint16_t breakCond;   ///< Number of 100ms slots with break conditions
+  uint8_t reserved1[4]; ///< Reserved
+} UBX_MON_IO_port_t;
+
+static_assert(sizeof(UBX_MON_IO_port_t) == 20,
+              "UBX_MON_IO_port_t must be 20 bytes");
+
+/** UBX-MON-MSGPP (0x0A 0x06) - Message Parse and Process Status.
+ *  120 bytes. Message counts per protocol per port.
+ */
+typedef struct __attribute__((packed)) {
+  uint16_t msg[6][8];  ///< Parsed message counts [port][protocol]
+  uint32_t skipped[6]; ///< Skipped bytes per port
+} UBX_MON_MSGPP_t;
+
+static_assert(sizeof(UBX_MON_MSGPP_t) == 120,
+              "UBX_MON_MSGPP_t must be 120 bytes");
+
+/** UBX-MON-RXBUF (0x0A 0x07) - Receiver Buffer Status.
+ *  24 bytes. Buffer pending/usage per port.
+ */
+typedef struct __attribute__((packed)) {
+  uint16_t pending[6];  ///< Bytes pending in RX buffer per port
+  uint8_t usage[6];     ///< Current usage % per port
+  uint8_t peakUsage[6]; ///< Peak usage % per port
+} UBX_MON_RXBUF_t;
+
+static_assert(sizeof(UBX_MON_RXBUF_t) == 24,
+              "UBX_MON_RXBUF_t must be 24 bytes");
+
+/** UBX-MON-TXBUF (0x0A 0x08) - Transmitter Buffer Status.
+ *  28 bytes. TX buffer pending/usage per port plus errors.
+ */
+typedef struct __attribute__((packed)) {
+  uint16_t pending[6];  ///< Bytes pending in TX buffer per port
+  uint8_t usage[6];     ///< Current usage % per port
+  uint8_t peakUsage[6]; ///< Peak usage % per port
+  uint8_t tUsage;       ///< Total current usage % across all ports
+  uint8_t tPeakUsage;   ///< Total peak usage % across all ports
+  uint8_t errors;       ///< Error flags (bit0=limit, bit1=mem, bit2=alloc)
+  uint8_t reserved1;    ///< Reserved
+} UBX_MON_TXBUF_t;
+
+static_assert(sizeof(UBX_MON_TXBUF_t) == 28,
+              "UBX_MON_TXBUF_t must be 28 bytes");
+
+// MON-TXBUF error flags
+#define UBX_MON_TXBUF_ERR_LIMIT 0x01 ///< Buffer limit reached
+#define UBX_MON_TXBUF_ERR_MEM 0x02   ///< Memory allocation error
+#define UBX_MON_TXBUF_ERR_ALLOC 0x04 ///< TX buffer full allocation error
+
+/** UBX SEC Message IDs. */
+typedef enum {
+  UBX_SEC_UNIQID = 0x03 // Unique Chip ID
+} UBXSecMessageId;
+
+/** UBX-SEC-UNIQID (0x27 0x03) - Unique Chip ID.
+ *  9 bytes. 40-bit unique chip identifier.
+ */
+typedef struct __attribute__((packed)) {
+  uint8_t version;      ///< Message version (0x01)
+  uint8_t reserved1[3]; ///< Reserved
+  uint8_t uniqueId[5];  ///< Unique 40-bit chip ID
+} UBX_SEC_UNIQID_t;
+
+static_assert(sizeof(UBX_SEC_UNIQID_t) == 9,
+              "UBX_SEC_UNIQID_t must be 9 bytes");
+
+/** UBX INF Message IDs. */
+typedef enum {
+  UBX_INF_ERROR = 0x00,   // Error message
+  UBX_INF_WARNING = 0x01, // Warning message
+  UBX_INF_NOTICE = 0x02,  // Notice message
+  UBX_INF_TEST = 0x03,    // Test message
+  UBX_INF_DEBUG = 0x04    // Debug message
+} UBXInfMessageId;
 
 #endif // ADAFRUIT_UBLOX_TYPEDEF_H

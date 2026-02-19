@@ -1167,3 +1167,150 @@ bool Adafruit_UBX::pollMonHw(UBX_MON_HW_t* hw, uint16_t timeout_ms) {
 }
 
 // =====================================================================
+// Phase 5: Monitoring & Diagnostics Message Implementations
+// =====================================================================
+
+/*!
+ *  @brief  Poll MON-GNSS message (GNSS system information)
+ *  @param  gnss Pointer to struct to fill
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return True if response received
+ */
+bool Adafruit_UBX::pollMonGnss(UBX_MON_GNSS_t* gnss, uint16_t timeout_ms) {
+  return poll(UBX_CLASS_MON, UBX_MON_GNSS, gnss, sizeof(UBX_MON_GNSS_t),
+              timeout_ms);
+}
+
+/*!
+ *  @brief  Poll MON-HW2 message (extended hardware status)
+ *  @param  hw2 Pointer to struct to fill
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return True if response received
+ */
+bool Adafruit_UBX::pollMonHw2(UBX_MON_HW2_t* hw2, uint16_t timeout_ms) {
+  return poll(UBX_CLASS_MON, UBX_MON_HW2, hw2, sizeof(UBX_MON_HW2_t),
+              timeout_ms);
+}
+
+/*!
+ *  @brief  Poll MON-IO message (I/O system status)
+ *  @param  ports Array of port structs to fill
+ *  @param  maxPorts Maximum number of ports the array can hold
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return Number of ports read, or 0 on failure
+ */
+uint8_t Adafruit_UBX::pollMonIo(UBX_MON_IO_port_t* ports, uint8_t maxPorts,
+                                uint16_t timeout_ms) {
+  if (!sendMessage(UBX_CLASS_MON, UBX_MON_IO, NULL, 0)) {
+    return 0;
+  }
+
+  uint32_t startTime = millis();
+  while (millis() - startTime < timeout_ms) {
+    if (checkMessages()) {
+      if (_lastMsgClass == UBX_CLASS_MON && _lastMsgId == UBX_MON_IO) {
+        uint16_t usablePayload = min(_lastPayloadLength, MAX_PAYLOAD_SIZE);
+        uint8_t portsInPayload = usablePayload / sizeof(UBX_MON_IO_port_t);
+        uint8_t portsToRead = min(portsInPayload, maxPorts);
+
+        for (uint8_t i = 0; i < portsToRead; i++) {
+          memcpy(&ports[i], _buffer + 6 + (i * sizeof(UBX_MON_IO_port_t)),
+                 sizeof(UBX_MON_IO_port_t));
+        }
+        return portsToRead;
+      }
+    }
+    delay(1);
+  }
+  return 0;
+}
+
+/*!
+ *  @brief  Poll MON-MSGPP message (message parse/process status)
+ *  @param  msgpp Pointer to struct to fill
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return True if response received
+ */
+bool Adafruit_UBX::pollMonMsgpp(UBX_MON_MSGPP_t* msgpp, uint16_t timeout_ms) {
+  return poll(UBX_CLASS_MON, UBX_MON_MSGPP, msgpp, sizeof(UBX_MON_MSGPP_t),
+              timeout_ms);
+}
+
+/*!
+ *  @brief  Poll MON-RXBUF message (receiver buffer status)
+ *  @param  rxbuf Pointer to struct to fill
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return True if response received
+ */
+bool Adafruit_UBX::pollMonRxbuf(UBX_MON_RXBUF_t* rxbuf, uint16_t timeout_ms) {
+  return poll(UBX_CLASS_MON, UBX_MON_RXBUF, rxbuf, sizeof(UBX_MON_RXBUF_t),
+              timeout_ms);
+}
+
+/*!
+ *  @brief  Poll MON-TXBUF message (transmitter buffer status)
+ *  @param  txbuf Pointer to struct to fill
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return True if response received
+ */
+bool Adafruit_UBX::pollMonTxbuf(UBX_MON_TXBUF_t* txbuf, uint16_t timeout_ms) {
+  return poll(UBX_CLASS_MON, UBX_MON_TXBUF, txbuf, sizeof(UBX_MON_TXBUF_t),
+              timeout_ms);
+}
+
+/*!
+ *  @brief  Poll SEC-UNIQID message (unique chip ID)
+ *  @param  uniqid Pointer to struct to fill
+ *  @param  timeout_ms Timeout in milliseconds
+ *  @return True if response received
+ */
+bool Adafruit_UBX::pollSecUniqid(UBX_SEC_UNIQID_t* uniqid,
+                                 uint16_t timeout_ms) {
+  return poll(UBX_CLASS_SEC, UBX_SEC_UNIQID, uniqid, sizeof(UBX_SEC_UNIQID_t),
+              timeout_ms);
+}
+
+/*!
+ *  @brief  Check if last received message was an INF message
+ *  @return True if last message was class INF (0x04)
+ */
+bool Adafruit_UBX::wasLastMessageINF() {
+  return (_lastMsgClass == UBX_CLASS_INF);
+}
+
+/*!
+ *  @brief  Get the type of the last INF message
+ *  @return INF message ID (0x00-0x04) or 0xFF if last message wasn't INF
+ */
+uint8_t Adafruit_UBX::getLastINFType() {
+  if (_lastMsgClass != UBX_CLASS_INF) {
+    return 0xFF;
+  }
+  return _lastMsgId;
+}
+
+/*!
+ *  @brief  Get the string content of the last INF message
+ *  @param  buffer Pointer to buffer to store the string
+ *  @param  maxLen Maximum length of buffer (including null terminator)
+ *  @return Number of characters copied (not including null terminator)
+ *  @note   Buffer will be null-terminated. Returns 0 if last message wasn't INF
+ */
+uint16_t Adafruit_UBX::getLastINFString(char* buffer, uint16_t maxLen) {
+  if (_lastMsgClass != UBX_CLASS_INF || maxLen == 0) {
+    if (maxLen > 0) {
+      buffer[0] = '\0';
+    }
+    return 0;
+  }
+
+  uint16_t usablePayload = min(_lastPayloadLength, MAX_PAYLOAD_SIZE);
+  uint16_t copyLen = min(usablePayload, (uint16_t)(maxLen - 1));
+
+  memcpy(buffer, _buffer + 6, copyLen);
+  buffer[copyLen] = '\0';
+
+  return copyLen;
+}
+
+// =====================================================================

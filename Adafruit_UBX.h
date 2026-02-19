@@ -142,6 +142,34 @@ class Adafruit_UBX {
   // MON-HW: Hardware status
   bool pollMonHw(UBX_MON_HW_t* hw, uint16_t timeout_ms = 1000);
 
+  // Phase 5: Monitoring & Diagnostics messages
+  // MON-GNSS: GNSS system info
+  bool pollMonGnss(UBX_MON_GNSS_t* gnss, uint16_t timeout_ms = 1000);
+
+  // MON-HW2: Extended hardware status
+  bool pollMonHw2(UBX_MON_HW2_t* hw2, uint16_t timeout_ms = 1000);
+
+  // MON-IO: I/O system status (variable length, returns port count)
+  uint8_t pollMonIo(UBX_MON_IO_port_t* ports, uint8_t maxPorts,
+                    uint16_t timeout_ms = 1000);
+
+  // MON-MSGPP: Message parse/process status
+  bool pollMonMsgpp(UBX_MON_MSGPP_t* msgpp, uint16_t timeout_ms = 1000);
+
+  // MON-RXBUF: Receiver buffer status
+  bool pollMonRxbuf(UBX_MON_RXBUF_t* rxbuf, uint16_t timeout_ms = 1000);
+
+  // MON-TXBUF: Transmitter buffer status
+  bool pollMonTxbuf(UBX_MON_TXBUF_t* txbuf, uint16_t timeout_ms = 1000);
+
+  // SEC-UNIQID: Unique chip ID
+  bool pollSecUniqid(UBX_SEC_UNIQID_t* uniqid, uint16_t timeout_ms = 1000);
+
+  // INF message support (unsolicited)
+  bool wasLastMessageINF();
+  uint8_t getLastINFType();
+  uint16_t getLastINFString(char* buffer, uint16_t maxLen);
+
   void setMessageCallback(UBXMessageCallback callback); // Set callback function
   UBXMessageCallback onUBXMessage; ///< Callback for message received
 
