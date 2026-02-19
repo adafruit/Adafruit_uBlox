@@ -181,6 +181,75 @@ typedef struct __attribute__((packed)) {
 static_assert(sizeof(UBX_NAV_SAT_sv_t) == 12,
               "UBX_NAV_SAT_sv_t must be 12 bytes");
 
+/** UBX-CFG-RST (0x06 0x04) - Reset Receiver.
+ *  4 bytes. Send-only command, do NOT expect ACK.
+ *  navBbrMask: 0x0000=Hot start, 0x0001=Warm start, 0xFFFF=Cold start
+ *  resetMode: 0x00=HW reset, 0x01=SW reset, 0x02=SW reset (GNSS only),
+ *             0x04=HW reset after shutdown, 0x08=GNSS stop, 0x09=GNSS start
+ */
+typedef struct __attribute__((packed)) {
+  uint16_t navBbrMask; ///< BBR sections to clear
+  uint8_t resetMode;   ///< Reset type
+  uint8_t reserved1;   ///< Reserved
+} UBX_CFG_RST_t;
+
+static_assert(sizeof(UBX_CFG_RST_t) == 4, "UBX_CFG_RST_t must be 4 bytes");
+
+/** UBX-CFG-RATE (0x06 0x08) - Navigation/Measurement Rate Settings.
+ *  6 bytes. Controls measurement and navigation rate.
+ */
+typedef struct __attribute__((packed)) {
+  uint16_t measRate; ///< Measurement rate (ms). 1000=1Hz, 200=5Hz, 100=10Hz
+  uint16_t navRate;  ///< Navigation rate (cycles). Ratio of meas to nav
+                     ///< solutions. Usually 1.
+  uint16_t timeRef;  ///< Time reference: 0=UTC, 1=GPS, 2=GLONASS, 3=BeiDou,
+                     ///< 4=Galileo
+} UBX_CFG_RATE_t;
+
+static_assert(sizeof(UBX_CFG_RATE_t) == 6, "UBX_CFG_RATE_t must be 6 bytes");
+
+/** UBX-CFG-CFG (0x06 0x09) - Clear, Save and Load Configurations.
+ *  12 bytes (or 13 with optional deviceMask).
+ *  Mask bits: bit0=ioPort, bit1=msgConf, bit2=infMsg, bit3=navConf,
+ *             bit4=rxmConf, bit8=senConf, bit9=rinvConf, bit10=antConf,
+ *             bit11=logConf
+ */
+typedef struct __attribute__((packed)) {
+  uint32_t clearMask; ///< Sections to clear (load defaults)
+  uint32_t saveMask;  ///< Sections to save to non-volatile memory
+  uint32_t loadMask;  ///< Sections to load from non-volatile memory
+} UBX_CFG_CFG_t;
+
+static_assert(sizeof(UBX_CFG_CFG_t) == 12, "UBX_CFG_CFG_t must be 12 bytes");
+
+/** UBX MON Message IDs. */
+typedef enum {
+  UBX_MON_VER = 0x04, // Receiver/Software Version
+  UBX_MON_HW = 0x09,  // Hardware Status
+  UBX_MON_HW2 = 0x0B, // Extended Hardware Status
+  UBX_MON_IO = 0x02,  // I/O System Status
+  UBX_MON_GNSS = 0x28 // GNSS System Info
+} UBXMonMessageId;
+
+/** UBX-MON-VER (0x0A 0x04) - Receiver/Software Version header.
+ *  40 bytes fixed, followed by 30-byte extension strings.
+ */
+typedef struct __attribute__((packed)) {
+  char swVersion[30]; ///< Software version string (nul-terminated)
+  char hwVersion[10]; ///< Hardware version string (nul-terminated)
+} UBX_MON_VER_header_t;
+
+static_assert(sizeof(UBX_MON_VER_header_t) == 40,
+              "UBX_MON_VER_header_t must be 40 bytes");
+
+/** UBX-MON-VER extension block. 30 bytes each. */
+typedef struct __attribute__((packed)) {
+  char extension[30]; ///< Extended software info (nul-terminated)
+} UBX_MON_VER_ext_t;
+
+static_assert(sizeof(UBX_MON_VER_ext_t) == 30,
+              "UBX_MON_VER_ext_t must be 30 bytes");
+
 /** Return values for functions that wait for acknowledgment. */
 typedef enum {
   UBX_SEND_SUCCESS = 0, // Message was acknowledged (ACK)

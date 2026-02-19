@@ -72,14 +72,11 @@ bool Adafruit_UBX::poll(uint8_t msgClass, uint8_t msgId, void* response,
 
   uint32_t startTime = millis();
   while ((millis() - startTime) < timeout_ms) {
-    UBXMessageCallback prevCallback = onUBXMessage;
-
     if (checkMessages()) {
       if (_lastMsgClass == msgClass && _lastMsgId == msgId) {
         uint16_t usablePayload = min(_lastPayloadLength, MAX_PAYLOAD_SIZE);
         uint16_t copyLen = min(responseSize, usablePayload);
         memcpy(response, _buffer + 6, copyLen);
-        onUBXMessage = prevCallback;
         return true;
       }
     }
@@ -136,6 +133,98 @@ uint8_t Adafruit_UBX::pollNAVSAT(UBX_NAV_SAT_header_t* header,
     delay(1);
   }
 
+  return 0;
+}
+
+bool Adafruit_UBX::resetReceiver(uint16_t navBbrMask, uint8_t resetMode) {
+  UBX_CFG_RST_t rst;
+  rst.navBbrMask = navBbrMask;
+  rst.resetMode = resetMode;
+  rst.reserved1 = 0;
+  // Don't wait for ACK — module resets immediately
+  return sendMessage(UBX_CLASS_CFG, UBX_CFG_RST, (uint8_t*)&rst, sizeof(rst));
+}
+
+bool Adafruit_UBX::hotStart() {
+  return resetReceiver(0x0000, 0x01);
+}
+
+bool Adafruit_UBX::warmStart() {
+  return resetReceiver(0x0001, 0x01);
+}
+
+bool Adafruit_UBX::coldStart() {
+  return resetReceiver(0xFFFF, 0x01);
+}
+
+bool Adafruit_UBX::setRate(uint16_t measRateMs, uint16_t navRate,
+                           uint16_t timeRef) {
+  UBX_CFG_RATE_t rate;
+  rate.measRate = measRateMs;
+  rate.navRate = navRate;
+  rate.timeRef = timeRef;
+  UBXSendStatus status = sendMessageWithAck(UBX_CLASS_CFG, UBX_CFG_RATE,
+                                            (uint8_t*)&rate, sizeof(rate));
+  return (status == UBX_SEND_SUCCESS);
+}
+
+bool Adafruit_UBX::getRate(UBX_CFG_RATE_t* rate) {
+  return poll(UBX_CLASS_CFG, UBX_CFG_RATE, rate, sizeof(UBX_CFG_RATE_t));
+}
+
+bool Adafruit_UBX::saveConfig() {
+  UBX_CFG_CFG_t cfg;
+  cfg.clearMask = 0x00000000;
+  cfg.saveMask = 0x0000FFFF; // save all sections
+  cfg.loadMask = 0x00000000;
+  UBXSendStatus status = sendMessageWithAck(UBX_CLASS_CFG, UBX_CFG_CFG,
+                                            (uint8_t*)&cfg, sizeof(cfg));
+  return (status == UBX_SEND_SUCCESS);
+}
+
+bool Adafruit_UBX::loadDefaults() {
+  UBX_CFG_CFG_t cfg;
+  cfg.clearMask = 0x0000FFFF; // clear all
+  cfg.saveMask = 0x00000000;
+  cfg.loadMask = 0x0000FFFF; // load all from defaults
+  UBXSendStatus status = sendMessageWithAck(UBX_CLASS_CFG, UBX_CFG_CFG,
+                                            (uint8_t*)&cfg, sizeof(cfg));
+  return (status == UBX_SEND_SUCCESS);
+}
+
+uint8_t Adafruit_UBX::pollMONVER(UBX_MON_VER_header_t* header,
+                                 UBX_MON_VER_ext_t* extArray, uint8_t maxExt,
+                                 uint16_t timeout_ms) {
+  if (!sendMessage(UBX_CLASS_MON, UBX_MON_VER, NULL, 0)) {
+    return 0;
+  }
+
+  uint32_t startTime = millis();
+  while (millis() - startTime < timeout_ms) {
+    if (checkMessages()) {
+      if (_lastMsgClass == UBX_CLASS_MON && _lastMsgId == UBX_MON_VER) {
+        uint16_t usablePayload = min(_lastPayloadLength, MAX_PAYLOAD_SIZE);
+        if (usablePayload < sizeof(UBX_MON_VER_header_t)) {
+          return 0;
+        }
+
+        memcpy(header, _buffer + 6, sizeof(UBX_MON_VER_header_t));
+
+        uint16_t extBytes = usablePayload - sizeof(UBX_MON_VER_header_t);
+        uint8_t extCount = extBytes / sizeof(UBX_MON_VER_ext_t);
+        extCount = min(extCount, maxExt);
+
+        for (uint8_t i = 0; i < extCount; i++) {
+          memcpy(&extArray[i],
+                 _buffer + 6 + sizeof(UBX_MON_VER_header_t) +
+                     (i * sizeof(UBX_MON_VER_ext_t)),
+                 sizeof(UBX_MON_VER_ext_t));
+        }
+        return extCount;
+      }
+    }
+    delay(1);
+  }
   return 0;
 }
 
@@ -398,6 +487,10 @@ bool Adafruit_UBX::checkMessages() {
         resetParser(); // Reset for next message
         break;
     }
+
+    // Stop after first complete message so _last fields aren't overwritten
+    if (messageReceived)
+      break;
   }
 
   return messageReceived;

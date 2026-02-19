@@ -61,6 +61,16 @@ class Adafruit_UBX {
             uint16_t responseSize, uint16_t timeout_ms = 1000);
   uint8_t pollNAVSAT(UBX_NAV_SAT_header_t* header, UBX_NAV_SAT_sv_t* svArray,
                      uint8_t maxSvs, uint16_t timeout_ms = 1000);
+  bool resetReceiver(uint16_t navBbrMask, uint8_t resetMode);
+  bool hotStart();
+  bool warmStart();
+  bool coldStart();
+  bool setRate(uint16_t measRateMs, uint16_t navRate = 1, uint16_t timeRef = 1);
+  bool getRate(UBX_CFG_RATE_t* rate);
+  bool saveConfig();
+  bool loadDefaults();
+  uint8_t pollMONVER(UBX_MON_VER_header_t* header, UBX_MON_VER_ext_t* extArray,
+                     uint8_t maxExt, uint16_t timeout_ms = 2000);
 
   // Configure port to use UBX protocol only (disable NMEA)
   UBXSendStatus setUBXOnly(UBXPortId portID, bool checkAck = true,
