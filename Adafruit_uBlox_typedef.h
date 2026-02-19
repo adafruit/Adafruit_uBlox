@@ -153,6 +153,34 @@ typedef struct __attribute__((packed)) {
 
 static_assert(sizeof(UBX_NAV_DOP_t) == 18, "UBX_NAV_DOP_t must be 18 bytes");
 
+/** UBX-NAV-SAT (0x01 0x35) - Satellite Information header.
+ *  8 bytes fixed, followed by 12 bytes per satellite.
+ */
+typedef struct __attribute__((packed)) {
+  uint32_t iTOW;        ///< GPS time of week (ms)
+  uint8_t version;      ///< Message version (0x01)
+  uint8_t numSvs;       ///< Number of satellites
+  uint8_t reserved1[2]; ///< Reserved
+} UBX_NAV_SAT_header_t;
+
+static_assert(sizeof(UBX_NAV_SAT_header_t) == 8,
+              "UBX_NAV_SAT_header_t must be 8 bytes");
+
+/** UBX-NAV-SAT repeated block - per satellite data. 12 bytes each. */
+typedef struct __attribute__((packed)) {
+  uint8_t gnssId; ///< GNSS identifier (0=GPS, 1=SBAS, 2=Galileo, 3=BeiDou,
+                  ///< 5=IMES, 6=GLONASS)
+  uint8_t svId;   ///< Satellite identifier
+  uint8_t cno;    ///< Carrier-to-noise ratio (dBHz)
+  int8_t elev;    ///< Elevation -90..+90 (deg)
+  int16_t azim;   ///< Azimuth 0..360 (deg)
+  int16_t prRes;  ///< Pseudorange residual (dm, scale 0.1 m)
+  uint32_t flags; ///< Bitmask (see protocol spec for details)
+} UBX_NAV_SAT_sv_t;
+
+static_assert(sizeof(UBX_NAV_SAT_sv_t) == 12,
+              "UBX_NAV_SAT_sv_t must be 12 bytes");
+
 /** Return values for functions that wait for acknowledgment. */
 typedef enum {
   UBX_SEND_SUCCESS = 0, // Message was acknowledged (ACK)

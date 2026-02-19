@@ -50,6 +50,11 @@ bool Adafruit_UBX::begin() {
   return true;
 }
 
+void Adafruit_UBX::updateChecksum(uint8_t incomingByte) {
+  _checksumA += incomingByte;
+  _checksumB += _checksumA;
+}
+
 /*!\
  *  @brief  Poll a UBX message and wait for response
  *  @param  msgClass Message class to poll
@@ -71,7 +76,8 @@ bool Adafruit_UBX::poll(uint8_t msgClass, uint8_t msgId, void* response,
 
     if (checkMessages()) {
       if (_lastMsgClass == msgClass && _lastMsgId == msgId) {
-        uint16_t copyLen = min(responseSize, _lastPayloadLength);
+        uint16_t usablePayload = min(_lastPayloadLength, MAX_PAYLOAD_SIZE);
+        uint16_t copyLen = min(responseSize, usablePayload);
         memcpy(response, _buffer + 6, copyLen);
         onUBXMessage = prevCallback;
         return true;
@@ -81,6 +87,56 @@ bool Adafruit_UBX::poll(uint8_t msgClass, uint8_t msgId, void* response,
   }
 
   return false;
+}
+
+/*! * @brief Poll NAV-SAT and fill as many satellites as will fit
+ * @param header Pointer to header struct to fill
+ * @param svArray Array of sv structs to fill
+ * @param maxSvs Maximum number of satellites the array can hold
+ * @param timeout_ms Timeout in milliseconds
+ * @return Number of satellites actually read (may be less than numSvs in header
+ * if buffer too small), or 0 on failure
+ */
+uint8_t Adafruit_UBX::pollNAVSAT(UBX_NAV_SAT_header_t* header,
+                                 UBX_NAV_SAT_sv_t* svArray, uint8_t maxSvs,
+                                 uint16_t timeout_ms) {
+  // Send poll request
+  if (!sendMessage(UBX_CLASS_NAV, UBX_NAV_SAT, NULL, 0)) {
+    return 0;
+  }
+
+  // Wait for matching response
+  uint32_t startTime = millis();
+  while (millis() - startTime < timeout_ms) {
+    if (checkMessages()) {
+      if (_lastMsgClass == UBX_CLASS_NAV && _lastMsgId == UBX_NAV_SAT) {
+        uint16_t usablePayload = min(_lastPayloadLength, MAX_PAYLOAD_SIZE);
+        if (usablePayload < sizeof(UBX_NAV_SAT_header_t)) {
+          return 0;
+        }
+
+        memcpy(header, _buffer + 6, sizeof(UBX_NAV_SAT_header_t));
+
+        uint16_t svBytesAvail = usablePayload - sizeof(UBX_NAV_SAT_header_t);
+        uint8_t svsInPayload = svBytesAvail / sizeof(UBX_NAV_SAT_sv_t);
+
+        uint8_t svsToRead = min(svsInPayload, maxSvs);
+        svsToRead = min(svsToRead, header->numSvs);
+
+        for (uint8_t i = 0; i < svsToRead; i++) {
+          memcpy(&svArray[i],
+                 _buffer + 6 + sizeof(UBX_NAV_SAT_header_t) +
+                     (i * sizeof(UBX_NAV_SAT_sv_t)),
+                 sizeof(UBX_NAV_SAT_sv_t));
+        }
+
+        return svsToRead;
+      }
+    }
+    delay(1);
+  }
+
+  return 0;
 }
 
 /*!
@@ -169,6 +225,8 @@ void Adafruit_UBX::resetParser() {
   _parserState = WAIT_SYNC_1;
   _payloadCounter = 0;
   _payloadLength = 0;
+  _checksumA = 0;
+  _checksumB = 0;
 }
 
 /*!
@@ -238,37 +296,46 @@ bool Adafruit_UBX::checkMessages() {
       case GET_CLASS:
         _msgClass = incomingByte;
         _buffer[2] = incomingByte; // Store for checksum calculation
+        _checksumA = 0;
+        _checksumB = 0;
+        updateChecksum(incomingByte);
         _parserState = GET_ID;
         break;
 
       case GET_ID:
         _msgId = incomingByte;
         _buffer[3] = incomingByte; // Store for checksum calculation
+        updateChecksum(incomingByte);
         _parserState = GET_LENGTH_1;
         break;
 
       case GET_LENGTH_1:
         _payloadLength = incomingByte;
         _buffer[4] = incomingByte; // Store for checksum calculation
+        updateChecksum(incomingByte);
         _parserState = GET_LENGTH_2;
         break;
 
       case GET_LENGTH_2:
         _payloadLength |= (incomingByte << 8);
         _buffer[5] = incomingByte; // Store for checksum calculation
+        updateChecksum(incomingByte);
 
-        if (_payloadLength > MAX_PAYLOAD_SIZE) {
-          resetParser(); // Payload too large, reset
+        _payloadCounter = 0;
+        if (_payloadLength == 0) {
+          _parserState = GET_CHECKSUM_A;
         } else {
-          _payloadCounter = 0;
           _parserState = GET_PAYLOAD;
         }
         break;
 
       case GET_PAYLOAD:
         if (_payloadCounter < _payloadLength) {
-          _buffer[6 + _payloadCounter] = incomingByte;
+          if (_payloadCounter < MAX_PAYLOAD_SIZE) {
+            _buffer[6 + _payloadCounter] = incomingByte;
+          }
           _payloadCounter++;
+          updateChecksum(incomingByte);
 
           if (_payloadCounter == _payloadLength) {
             _parserState = GET_CHECKSUM_A;
@@ -277,10 +344,6 @@ bool Adafruit_UBX::checkMessages() {
         break;
 
       case GET_CHECKSUM_A:
-        // Calculate expected checksum
-        calculateChecksum(_buffer + 2, _payloadLength + 4, _checksumA,
-                          _checksumB);
-
         if (incomingByte == _checksumA) {
           _parserState = GET_CHECKSUM_B; // Checksum A matches
         } else {
@@ -321,7 +384,8 @@ bool Adafruit_UBX::checkMessages() {
 
             // Print payload if verbose debug is enabled
             if (verbose_debug > 1 && _payloadLength > 0) {
-              printHexBuffer(F("PL"), _buffer + 6, _payloadLength);
+              uint16_t payloadToPrint = min(_payloadLength, MAX_PAYLOAD_SIZE);
+              printHexBuffer(F("PL"), _buffer + 6, payloadToPrint);
             }
 
             // Print checksum

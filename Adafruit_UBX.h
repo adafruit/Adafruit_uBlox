@@ -59,6 +59,8 @@ class Adafruit_UBX {
                                    uint16_t timeout_ms = 500);
   bool poll(uint8_t msgClass, uint8_t msgId, void* response,
             uint16_t responseSize, uint16_t timeout_ms = 1000);
+  uint8_t pollNAVSAT(UBX_NAV_SAT_header_t* header, UBX_NAV_SAT_sv_t* svArray,
+                     uint8_t maxSvs, uint16_t timeout_ms = 1000);
 
   // Configure port to use UBX protocol only (disable NMEA)
   UBXSendStatus setUBXOnly(UBXPortId portID, bool checkAck = true,
@@ -71,7 +73,18 @@ class Adafruit_UBX {
   Stream* _stream; // Stream interface for reading data
 
   // Buffer for reading messages
-  static const uint16_t MAX_PAYLOAD_SIZE = 100; // Maximum UBX payload size
+  // Platform-adaptive payload buffer size
+  // AVR (ATmega328 etc): keep small to save RAM
+  // Everything else (ARM, RP2040, ESP32): large enough for NAV-SAT with max
+  // sats
+#if defined(__AVR_ATmega328P__) || defined(__AVR_ATmega328__) || \
+    defined(__AVR_ATmega32U4__)
+  static const uint16_t MAX_PAYLOAD_SIZE =
+      100; ///< AVR: fits ~7 sats in NAV-SAT
+#else
+  static const uint16_t MAX_PAYLOAD_SIZE =
+      920; ///< ARM/RP2040/ESP32: fits 72 sats in NAV-SAT
+#endif
   uint8_t _buffer[MAX_PAYLOAD_SIZE +
                   8]; // Buffer for message (header, payload, checksum)
 
@@ -99,6 +112,7 @@ class Adafruit_UBX {
   // Calculate checksum for a block of data
   void calculateChecksum(uint8_t* buffer, uint16_t len, uint8_t& checksumA,
                          uint8_t& checksumB);
+  void updateChecksum(uint8_t incomingByte);
 
   // Reset parser state
   void resetParser();
