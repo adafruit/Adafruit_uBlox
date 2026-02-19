@@ -141,34 +141,70 @@ uint8_t runTests(const UBX_NAV_STATUS_t& status) {
 void printStatus(const UBX_NAV_STATUS_t& status) {
   Serial.println(F("--- NAV-STATUS ---"));
 
-  Serial.print(F("Fix: "));
+  Serial.print(F("Fix type: "));
   Serial.print(status.gpsFix);
-  Serial.print(F("  FixOK: "));
-  Serial.print(status.flags & 0x01);
-  Serial.print(F("  DiffSoln: "));
-  Serial.println((status.flags >> 1) & 0x01);
+  switch (status.gpsFix) {
+    case 0:
+      Serial.println(F(" (no fix)"));
+      break;
+    case 1:
+      Serial.println(F(" (dead reckoning)"));
+      break;
+    case 2:
+      Serial.println(F(" (2D fix)"));
+      break;
+    case 3:
+      Serial.println(F(" (3D fix)"));
+      break;
+    case 4:
+      Serial.println(F(" (GNSS + dead reckoning)"));
+      break;
+    case 5:
+      Serial.println(F(" (time only)"));
+      break;
+    default:
+      Serial.println(F(" (unknown)"));
+      break;
+  }
 
-  Serial.print(F("WknSet: "));
-  Serial.print((status.flags >> 2) & 0x01);
-  Serial.print(F("  TowSet: "));
-  Serial.println((status.flags >> 3) & 0x01);
+  Serial.print(F("Fix valid: "));
+  Serial.println((status.flags & 0x01) ? F("yes") : F("no"));
+  Serial.print(F("Differential corrections: "));
+  Serial.println(((status.flags >> 1) & 0x01) ? F("applied") : F("none"));
+  Serial.print(F("Week number valid: "));
+  Serial.println(((status.flags >> 2) & 0x01) ? F("yes") : F("no"));
+  Serial.print(F("Time of week valid: "));
+  Serial.println(((status.flags >> 3) & 0x01) ? F("yes") : F("no"));
 
-  Serial.print(F("TTFF: "));
-  Serial.print(status.ttff);
-  Serial.println(F(" ms"));
-  Serial.print(F("Uptime: "));
-  Serial.print(status.msss);
-  Serial.println(F(" ms"));
+  Serial.print(F("Time to first fix: "));
+  Serial.print(status.ttff / 1000.0, 1);
+  Serial.println(F(" sec"));
+  Serial.print(F("Uptime since reset: "));
+  Serial.print(status.msss / 1000.0, 1);
+  Serial.println(F(" sec"));
 
   uint8_t psm_state = status.flags2 & 0x07;
   uint8_t spoof_state = (status.flags2 >> 3) & 0x03;
   uint8_t carr_soln = (status.flags2 >> 6) & 0x03;
-  Serial.print(F("PSM: "));
-  Serial.print(psm_state);
-  Serial.print(F("  Spoof: "));
-  Serial.print(spoof_state);
-  Serial.print(F("  CarrSoln: "));
-  Serial.println(carr_soln);
+  Serial.print(F("Power save mode: "));
+  Serial.println(psmLabel(psm_state));
+  Serial.print(F("Spoofing detection: "));
+  Serial.println(spoofLabel(spoof_state));
+  Serial.print(F("Carrier solution: "));
+  switch (carr_soln) {
+    case 0:
+      Serial.println(F("none"));
+      break;
+    case 1:
+      Serial.println(F("floating"));
+      break;
+    case 2:
+      Serial.println(F("fixed"));
+      break;
+    default:
+      Serial.println(F("unknown"));
+      break;
+  }
 
   Serial.println();
 }
