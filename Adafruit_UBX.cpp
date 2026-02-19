@@ -50,6 +50,39 @@ bool Adafruit_UBX::begin() {
   return true;
 }
 
+/*!\
+ *  @brief  Poll a UBX message and wait for response
+ *  @param  msgClass Message class to poll
+ *  @param  msgId Message ID to poll
+ *  @param  response Pointer to response payload buffer
+ *  @param  responseSize Size of response buffer in bytes
+ *  @param  timeout_ms Maximum time to wait for response in milliseconds
+ *  @return True if response received, false on timeout or send failure
+ */
+bool Adafruit_UBX::poll(uint8_t msgClass, uint8_t msgId, void* response,
+                        uint16_t responseSize, uint16_t timeout_ms) {
+  if (!sendMessage(msgClass, msgId, NULL, 0)) {
+    return false;
+  }
+
+  uint32_t startTime = millis();
+  while ((millis() - startTime) < timeout_ms) {
+    UBXMessageCallback prevCallback = onUBXMessage;
+
+    if (checkMessages()) {
+      if (_lastMsgClass == msgClass && _lastMsgId == msgId) {
+        uint16_t copyLen = min(responseSize, _lastPayloadLength);
+        memcpy(response, _buffer + 6, copyLen);
+        onUBXMessage = prevCallback;
+        return true;
+      }
+    }
+    delay(1);
+  }
+
+  return false;
+}
+
 /*!
  *  @brief  Configure the GPS module to output only UBX protocol (disables NMEA)
  *  @param  portID Port identifier (UBX_PORT_DDC, UBX_PORT_UART1, etc.)

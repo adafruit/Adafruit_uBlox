@@ -57,6 +57,8 @@ class Adafruit_UBX {
   UBXSendStatus sendMessageWithAck(uint8_t msgClass, uint8_t msgId,
                                    uint8_t* payload, uint16_t length,
                                    uint16_t timeout_ms = 500);
+  bool poll(uint8_t msgClass, uint8_t msgId, void* response,
+            uint16_t responseSize, uint16_t timeout_ms = 1000);
 
   // Configure port to use UBX protocol only (disable NMEA)
   UBXSendStatus setUBXOnly(UBXPortId portID, bool checkAck = true,
@@ -69,7 +71,7 @@ class Adafruit_UBX {
   Stream* _stream; // Stream interface for reading data
 
   // Buffer for reading messages
-  static const uint16_t MAX_PAYLOAD_SIZE = 64; // Maximum UBX payload size
+  static const uint16_t MAX_PAYLOAD_SIZE = 100; // Maximum UBX payload size
   uint8_t _buffer[MAX_PAYLOAD_SIZE +
                   8]; // Buffer for message (header, payload, checksum)
 
